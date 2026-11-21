@@ -5,8 +5,50 @@
     <link>https://lvxi0605.github.io/</link>
     <description>lvxi个人博客网站，学习、工作、生活</description>
     <language>zh-CN</language>
-    <lastBuildDate>Sat, 21 Nov 2026 16:33:15 GMT</lastBuildDate>
+    <lastBuildDate>Sat, 21 Nov 2026 23:23:41 GMT</lastBuildDate>
     <atom:link href="https://lvxi0605.github.io/rss.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>这个博客的 892 个测试都在守什么</title>
+      <link>https://lvxi0605.github.io/posts/fe/blog-testing-notes</link>
+      <guid isPermaLink="true">https://lvxi0605.github.io/posts/fe/blog-testing-notes</guid>
+      <pubDate>Sun, 22 Nov 2026 00:00:00 GMT</pubDate>
+      <description>上一篇写开发过程，这篇写守着这些过程的 892 个测试：四层防线各自守什么、它们抓过的真 bug，以及为什么一个纯静态博客值得把测试当门禁。这篇文章本身也是探针——push 之后搜索索引应该从 508 变 509。</description>
+      <content:encoded>&lt;p&gt;上一篇写了这个博客的开发过程，有读者（其实就是我自己）可能会问：一个纯静态博客，没有用户输入、没有服务端，凭什么养着八百多个测试？这篇把测试这层摊开讲——它们守什么、怎么分层、抓过哪些真 bug。&lt;/p&gt;
+&lt;!--more--&gt;
+&lt;h2&gt;四层防线&lt;/h2&gt;
+&lt;p&gt;测试不是一份大杂烩，按「离什么近」分了四层，每层抓的错不一样。&lt;/p&gt;
+&lt;h3&gt;第一层：纯函数，占大头&lt;/h3&gt;
+&lt;p&gt;剥码口径、facet 聚合计数、404 推荐的关键词打分、Text Fragment 的编码、骨架截断的尺寸适配——这些全是输入输出确定的纯函数。纯函数测试最便宜也最锋利：没有 mock、没有时序、没有 DOM，一个 &lt;code&gt;toEqual&lt;/code&gt; 就是全部真相。&lt;/p&gt;
+&lt;p&gt;比如搜索 facet 的「组间 AND、组内 OR、联动计数」语义，规则看着简单，边界一多就容易写漂：已选维度自己不参与自己那组的计数、被筛空的值要保留沉底、全空选择等于全通过。这些语义各用一个测试钉住之后，谁改排序谁改过滤，测试当场喊停。&lt;/p&gt;
+&lt;p&gt;再比如骨架截断：标题块必须全保、正文块按原文顺序贪心填充、装不下整块丢弃加省略号、标题骨架塞满预算退回尾部字节截断。这些行为都有「看起来也能跑」的错误实现——尾部截断会把后半篇的小节标题一起切掉，测试的用处就是把「能跑」和「对」划清界限。&lt;/p&gt;
+&lt;h3&gt;第二层：组件与交互&lt;/h3&gt;
+&lt;p&gt;排版面板、自动滚动、划词分享、公式复制这些真 DOM 行为，跑在 happy-dom 里。这一层的成本全在「替身」：Nuxt 的自动导入（ref / watch / useState）要 stub，&lt;code&gt;ResizeObserver&lt;/code&gt;、&lt;code&gt;navigator.clipboard&lt;/code&gt;、&lt;code&gt;matchMedia&lt;/code&gt;、rAF 这些浏览器 API 要一个能被断言的假货。积累下来一套小约定——stub 必须放 &lt;code&gt;beforeEach&lt;/code&gt;（&lt;code&gt;afterEach&lt;/code&gt; 的 &lt;code&gt;unstubAllGlobals&lt;/code&gt; 会把顶层 stub 擦掉）、异步反馈要额外 settle 一拍再断言、键盘事件得用真 &lt;code&gt;KeyboardEvent&lt;/code&gt; 不能用裸 &lt;code&gt;Event&lt;/code&gt;。&lt;/p&gt;
+&lt;p&gt;有个教训值得单独记：给 &lt;code&gt;.katex-display&lt;/code&gt; 注入复制按钮的组合逻辑，挂载后 &lt;code&gt;watch&lt;/code&gt; 会在下一拍&lt;strong&gt;重新绑定&lt;/strong&gt;一遍——测试如果拿着挂载瞬间抓到的节点去点，点的是一个已经 detach 的节点，断言全错但报错莫名其妙。解法是挂载后等一拍再交互。DOM 增强类 composable 的测试，都得过这一关。&lt;/p&gt;
+&lt;h3&gt;第三层：跨文件一致性&lt;/h3&gt;
+&lt;p&gt;最容易烂掉的是「多处各自实现、慢慢漂移」的那类错。这一层测的是约定本身：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;剥码口径三方同源——线上索引、本地全文分片、产物校验共用同一个 &lt;code&gt;toPlainText&lt;/code&gt;，超限骨架截断的块拆分折叠后与它&lt;strong&gt;逐字节等价&lt;/strong&gt;（全量 508 篇钉住）&lt;/li&gt;
+&lt;li&gt;发布集合的排除规则只有一份 glob 清单，预渲染、sitemap、RSS、索引、列表全都消费它，测试验证「互斥且合计等于全部」&lt;/li&gt;
+&lt;li&gt;front-matter 正则与运行时的 afterParse 同源，BOM、CRLF、行尾空格都要命中&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;这层测试防的是最阴险的 bug：每一处单独看都对，合起来不是一回事。&lt;/p&gt;
+&lt;h3&gt;第四层：产物门禁与线上探针&lt;/h3&gt;
+&lt;p&gt;前 three 层测代码，这一层测&lt;strong&gt;产物&lt;/strong&gt;。&lt;code&gt;check:static&lt;/code&gt; 构建完逐篇校验：HTML、payload、OG 图、sitemap 与发布集合对账、robots.txt；&lt;code&gt;probe:site&lt;/code&gt; 对线上站点逐项探测，抽样文章从 sitemap 随机取，防止「永远检查那几篇」。&lt;/p&gt;
+&lt;p&gt;这层抓过的经典案例：404 页在 Nuxt 里是客户端壳（&lt;code&gt;data-ssr=&quot;false&quot;&lt;/code&gt;、静态 HTML 没有 title），探针按「必须有 SSR 标记」的假设写，第一次上线验收就翻车——线上其实完全正确，是检查器的假设从没对过真实产物。修完之后探针的 404 断言改成「状态码正确 + 不跳走 + 是我们的产物」。&lt;/p&gt;
+&lt;h2&gt;测试抓过的真 bug&lt;/h2&gt;
+&lt;p&gt;挑三个只有测试环境才肯暴露的。&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;vmForks 少 worker 下的跨文件泄漏&lt;/strong&gt;：本地测试全绿，CI 4 核全红。根因是模块级的搜索客户端缓存在少 worker 时跨测试文件泄漏，后跑的文件拿到前一个文件创建的 client（固化着那个文件的 mock）。复现手段是单 worker 跑全量——复现不出来之前，一切日志都是猜。&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;localeCompare 的两台机器两种排序&lt;/strong&gt;：中文同频项在 zh-CN 按拼音排、CI 的 en 按码点排，「并发」和「前端」顺序直接翻转。现在仓库里所有需要跨环境稳定的排序都用字节序，测试断言 tie 时只比较集合。&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;竞态语义的回归网&lt;/strong&gt;：搜索页与 Ctrl+K 面板同时可见时，旧请求的迟到失败不能污染新请求的来源状态。这个语义有专门的竞态测试（跨实例、同实例、失效兜底四组），后来搜索降级逻辑重构时，全靠它确认「来源绑定」行为一行没变。&lt;/p&gt;
+&lt;h2&gt;测试换来的底气&lt;/h2&gt;
+&lt;p&gt;性能优化敢上「一行配置删掉 72MB 内联样式」，是因为知道改完跑一遍全量测试就知道有没有砸到别的；搜索降级链路敢重构，是因为竞态语义有测试钉着；索引推送敢自动跑，是因为尺寸适配的每个分支都有断言。&lt;/p&gt;
+&lt;p&gt;测试不是写完功能补的，是和功能一起落的——一个功能带一组回归进来，892 这个数字就是这么涨上来的。它换来的不是「没有 bug」，是&lt;strong&gt;改动时的底气&lt;/strong&gt;：门禁挡在提交前面，bad case 进不了主干。&lt;/p&gt;
+&lt;h2&gt;这篇文章就是探针&lt;/h2&gt;
+&lt;p&gt;按现在的流水线，这篇文章 push 之后：变更检测 job 对比 &lt;code&gt;content/posts&lt;/code&gt; 应该报 posts=true，构建全绿后 Algolia 索引自动同步，索引总数从 508 变 509，搜这篇的标题应该能命中。上一轮的骨架截断修好之后，这还是第一次走完全自动路径的索引更新——文章发出去，测试结果也就出来了。&lt;/p&gt;
+&lt;h2&gt;写在最后&lt;/h2&gt;
+&lt;p&gt;有人觉得静态博客不值得这个测试量，我的看法相反：&lt;strong&gt;越是没人盯的项目越需要门禁&lt;/strong&gt;。有团队的项目，代码评审本身就是一道防线；一个人的项目，测试就是那个替你盯着的同事。半夜推一版改动，第二天起来看到全绿的流水线，这种安心是真实的生产力。&lt;/p&gt;
+&lt;p&gt;写完正好流水线也跑完了，收工。&lt;/p&gt;</content:encoded>
+    </item>
     <item>
       <title>这个博客是怎么开发的：阅读体验、质量门禁与自动发布</title>
       <link>https://lvxi0605.github.io/posts/fe/blog-development-notes</link>
@@ -1642,38 +1684,6 @@ WHERE sku_id IN (?, ?) ORDER BY sku_id;
 &lt;h2&gt;写在最后&lt;/h2&gt;
 &lt;p&gt;中午和同事为这个方案争了半天，下午各自写了个小 demo 验证，最后他赢了，输得心服口服。&lt;/p&gt;
 &lt;p&gt;这篇写得断断续续，总算收尾，下篇见。&lt;/p&gt;</content:encoded>
-    </item>
-    <item>
-      <title>搬家的断舍离练习</title>
-      <link>https://lvxi0605.github.io/posts/life/moving-day</link>
-      <guid isPermaLink="true">https://lvxi0605.github.io/posts/life/moving-day</guid>
-      <pubDate>Wed, 21 Oct 2026 00:00:00 GMT</pubDate>
-      <description>又到周末，把这阵子的碎片想法归拢成一篇，写得随意一点。</description>
-      <content:encoded>&lt;p&gt;又到周末，把这阵子的碎片想法归拢成一篇，写得随意一点。&lt;/p&gt;
-&lt;!--more--&gt;
-&lt;h2&gt;东西比想象的多&lt;/h2&gt;
-&lt;p&gt;这次搬家提前了两周开始收拾，本来觉得五年攒不了多少东西，结果打包纸箱买到第三批才够。真正花时间的不是装箱，是决定每件东西的去留：搬家是最好的断舍离练习场，因为每一件都要回答一个问题，它值得被搬到新家吗。&lt;/p&gt;
-&lt;p&gt;我的判断标准最后收敛成三条：一年内没用过的送人或丢掉；有意义没用途的，拍照留念后处理，相册占不了地方；重复的东西只留最好的那个。就这么筛下来，实际搬走的东西不到打包量的一半，过程里扔掉的大半是&quot;总有一天会用上&quot;这个念头本身。&lt;/p&gt;
-&lt;h2&gt;收拾之后的感受&lt;/h2&gt;
-&lt;p&gt;新家安顿好之后有个明显的感受：东西少了，找东西的时间也少了，桌面能保持住整洁了。以前总觉得空间不够，其实是被低频物品占满了高频区域。这半年陆陆续续还在做减法，购物前多了个习惯动作，先想想这件东西在下次搬家时会变成什么。带着终局视角过日子，很多消费冲动就自动降温了。&lt;/p&gt;
-&lt;h2&gt;一点反思&lt;/h2&gt;
-&lt;p&gt;加湿器开一整夜，窗台上全是水汽，墙角都有点返潮。买了个湿度计才知道，舒服的湿度是个区间，不是越大越好，很多事都是这个道理。&lt;/p&gt;
-&lt;p&gt;桌面充电线缠成一团，剪也剪不开理也理不清。十块钱的理线器加几个标签贴，一次到位。这种小钱花出去，回报率出奇地高。&lt;/p&gt;
-&lt;p&gt;保温杯里闷了一晚上的茶，苦到怀疑人生。茶水分离的杯子买回来之后，每一泡都恰到好处，工具选对，体验立刻不同。&lt;/p&gt;
-&lt;h2&gt;顺便一提&lt;/h2&gt;
-&lt;p&gt;写生活记录这几年有个体会：当时觉得不值得写的小事，事后回看反而是最鲜活的片段。反而是那些酝酿很久想认真写的“大主题”，多数烂在了草稿箱。所以现在我的原则是趁热写，先记下来，好不好以后再说。&lt;/p&gt;
-&lt;p&gt;生活里很多烦恼，拆开看其实是信息问题而不是命运问题：不知道怎么挑、不知道怎么做、不知道别人是怎么解决的。而信息问题基本都能靠学习和请教解决，这么一想，很多焦虑就有了着手点。&lt;/p&gt;
-&lt;p&gt;独居和成家各有各的修行，我现在的体会是无论哪种状态，把生活的基础盘打理好都是第一位的：睡眠、饮食、居住环境、几个说得上话的朋友。基础盘稳了，其他的变化来了都能接得住。&lt;/p&gt;
-&lt;p&gt;成年人的学习和学生时代最大的不同是反馈周期，没人给你打分，效果要几个月甚至几年后才显现。所以坚持的动力只能来自内部：记录对照、阶段复盘、给自己一点小奖励，这些机制比意志力可靠得多。&lt;/p&gt;
-&lt;p&gt;写生活记录这几年有个体会：当时觉得不值得写的小事，事后回看反而是最鲜活的片段。反而是那些酝酿很久想认真写的“大主题”，多数烂在了草稿箱。所以现在我的原则是趁热写，先记下来，好不好以后再说。&lt;/p&gt;
-&lt;h2&gt;另外记几笔&lt;/h2&gt;
-&lt;p&gt;忍不住再夸一下记录的力量，上周刚整理的笔记，这次直接翻出来就用，十分钟解决了当时花一下午的问题。给自己留下的每一份笔记，都是寄给未来的快递，寄件人签收时才觉得真香。&lt;/p&gt;
-&lt;p&gt;最后聊点感受：做技术这些年，越来越觉得最好的状态是既投入又抽离。投入是把事情做好，抽离是时不时跳出来看看方向对不对，两者缺一，要么辛苦没产出，要么轻松跑偏路。&lt;/p&gt;
-&lt;p&gt;写着写着想到，很多技术选择本质上都是在回答同一个问题：这个方案在出问题的时候是什么样子。不出问题的方案人人都写得出来，区分度全在故障时刻的表现。多想一层失败路径，很多纠结就自动有了答案。&lt;/p&gt;
-&lt;p&gt;这类经验在文档里通常只有一行字，背后的排查却是一整个下午。技术工作的大部分时间都花在这些不会写进简历的细节里，所以这些细节才更需要有人写出来，哪怕只是给未来某一天忘了的自己。&lt;/p&gt;
-&lt;h2&gt;小结&lt;/h2&gt;
-&lt;p&gt;折腾完顺手写了几行代码做了个统计，理工科思维的反应就是这样，朋友都笑我，但确实好用了。&lt;/p&gt;
-&lt;p&gt;差不多了，剩下的细节等用到的时候再展开写。&lt;/p&gt;</content:encoded>
     </item>
   </channel>
 </rss>
