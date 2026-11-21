@@ -1,0 +1,1592 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Lvxi</title>
+    <link>https://lvxi0605.github.io/</link>
+    <description>lvxi个人博客网站，学习、工作、生活</description>
+    <language>zh-CN</language>
+    <lastBuildDate>Sat, 21 Nov 2026 14:59:42 GMT</lastBuildDate>
+    <atom:link href="https://lvxi0605.github.io/rss.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>手冲咖啡入门记录</title>
+      <link>https://lvxi0605.github.io/posts/coffee/pourover-start</link>
+      <guid isPermaLink="true">https://lvxi0605.github.io/posts/coffee/pourover-start</guid>
+      <pubDate>Thu, 12 Nov 2026 00:00:00 GMT</pubDate>
+      <description>这篇没有代码，纯记录生活，技术同学可以直接跳过，开玩笑的，看完也许有点别的收获。</description>
+      <content:encoded>&lt;p&gt;这篇没有代码，纯记录生活，技术同学可以直接跳过，开玩笑的，看完也许有点别的收获。&lt;/p&gt;
+&lt;!--more--&gt;
+&lt;h2&gt;入门装备&lt;/h2&gt;
+&lt;p&gt;入坑手冲咖啡，装备按最简原则配齐：一个手摇磨豆机、一个 V60 滤杯配滤纸、一个细口壶、一个电子秤带计时，全套下来不算贵，比天天买咖啡厅的账单划算。第一杯自己冲的咖啡谈不上惊艳，甚至有点寡淡，但那种亲手做出来的成就感是真实存在的。&lt;/p&gt;
+&lt;p&gt;参数上踩过的坑：水温太高萃取过度又苦又涩，九十二度左右是多数浅烘豆的舒适区；粉水比从一比十五起步调；研磨度对手冲的影响立竿见影，太细苦、太粗淡，磨豆机的刻度试出来一档偏粗半档偏细的位置，就锁定它。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://lvxi0605.github.io/img/3.webp&quot; alt=&quot;手冲咖啡入门记录&quot;&gt;&lt;/p&gt;
+&lt;h2&gt;风味与记录&lt;/h2&gt;
+&lt;p&gt;喝了一阵之后开始能分辨风味了，酸、甜、苦之外，居然真的能喝出描述里的花果香，这件事的玄学外壳裂开了一条缝。我的做法是每支豆子记录冲煮参数和感受，几页笔记下来，偏好逐渐清晰：喜酸就挑非洲豆，喜醇厚就看曼特宁方向。&lt;/p&gt;
+&lt;p&gt;手冲这件事最大的吸引力在于它是个可调参的小系统，水温柔比研磨度水流高度，每个变量都能实验，对工程师来说简直量身定做。周末早上给自己冲一杯，闻着香气等水温降下来的十分钟，是一天里少有的完全属于自己的时间。&lt;/p&gt;
+&lt;h2&gt;过程中的小心得&lt;/h2&gt;
+&lt;p&gt;剩菜以前是等凉透再进冰箱，被科普之后才知道要尽快冷藏，细菌繁殖的窗口期比想象中短。生活里很多想当然的习惯，较真起来都有另一套答案。&lt;/p&gt;
+&lt;p&gt;随手记两个小教训：阳台那盆绿萝浇得太勤，根都泡烂了，剪掉烂的部分重新扦插，现在改了策略，土干了再浇，反倒精神了不少。&lt;/p&gt;
+&lt;p&gt;煮饭水放多了，成品介于饭和粥之间。后来老老实实用量杯，或者直接看水位线，凭感觉这种事，在厨房里基本靠不住。&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-java&quot;&gt;package cn.lvxi.dm.auth.app.log;
+
+import cn.lvxi.common.infra.operationlog.OperationLogInfo;
+import cn.lvxi.common.infra.operationlog.OperationLogRecorder;
+import cn.lvxi.dm.common.remote.api.LogApiService;
+import cn.lvxi.dm.common.remote.model.OperationLogRO;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.dubbo.config.annotation.DubboReference;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+
+/**
+ * 认证服务的操作日志记录器：批量经 RPC 上报公共服务写入 operation_log
+ */
+@Slf4j
+@RequiredArgsConstructor
+@Component
+public class RpcOperationLogRecorder implements OperationLogRecorder {
+
+    @DubboReference
+    private final LogApiService logApiService;
+
+    @Override
+    public void record(List&amp;#x3C;OperationLogInfo&gt; infos) {
+        if (infos == null || infos.isEmpty()) {
+            return;
+        }
+        try {
+            List&amp;#x3C;OperationLogRO&gt; roList = infos.stream()
+                    .map(this::toRo)
+                    .toList();
+            logApiService.createOperationLogs(roList);
+        } catch (Exception e) {
+            log.warn(&quot;操作日志批量上报失败, size={}&quot;, infos.size(), e);
+        }
+    }
+
+    private OperationLogRO toRo(OperationLogInfo info) {
+        OperationLogRO ro = new OperationLogRO();
+        ro.setUserId(info.getUserId());
+        ro.setUsername(info.getUsername());
+        ro.setTitle(info.getTitle());
+        ro.setOperationType(info.getOperationType());
+        ro.setRequestMethod(info.getRequestMethod());
+        ro.setRequestUrl(info.getRequestUrl());
+        ro.setRequestParams(info.getRequestParams());
+        ro.setResponseData(info.getResponseData());
+        ro.setIp(info.getIp());
+        ro.setStatus(info.getStatus());
+        ro.setErrorMsg(info.getErrorMsg());
+        ro.setExecutionTime(info.getExecutionTime());
+        return ro;
+    }
+}
+
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h2&gt;延伸几句&lt;/h2&gt;
+&lt;p&gt;关于咖啡因的摄入，值得认真对待的只有两件事：总量和时段。了解自己的耐受度，下午三点以后基本戒断，剩下的就交给喜好。至于健康的长长短短的传闻，适量这个原则都成立。&lt;/p&gt;
+&lt;p&gt;咖啡喝了几年的一个总结：器材的投入应该跟着需求的明确程度走。还没搞清楚自己喜欢什么的时候，入门装备加试错的心思比旗舰设备更划算，等口味稳定了再升级，钱才花在点子上。&lt;/p&gt;
+&lt;p&gt;咖啡的仪式感这个词被用滥了，但那个动作本身确实有价值：磨豆的十几秒、注水的两分钟，是一段强制离屏的时间。每天里有这么几分钟完全属于自己，这件事的价值可能大于咖啡因本身。&lt;/p&gt;
+&lt;p&gt;::collapse{title=&quot;点击展开&quot;}
+折叠内容…（列表、代码块均可内嵌）&lt;/p&gt;
+&lt;p&gt;fff
+::&lt;/p&gt;
+&lt;p&gt;::admonition{type=&quot;warning&quot; title=&quot;注意&quot;}
+这里是提示内容，支持 &lt;strong&gt;Markdown&lt;/strong&gt; 与公式 &lt;span class=&quot;katex&quot;&gt;&lt;math xmlns=&quot;http://www.w3.org/1998/Math/MathML&quot;&gt;&lt;semantics&gt;&lt;mrow&gt;&lt;mi&gt;E&lt;/mi&gt;&lt;mo&gt;=&lt;/mo&gt;&lt;mi&gt;m&lt;/mi&gt;&lt;msup&gt;&lt;mi&gt;c&lt;/mi&gt;&lt;mn&gt;2&lt;/mn&gt;&lt;/msup&gt;&lt;/mrow&gt;&lt;annotation encoding=&quot;application/x-tex&quot;&gt;E=mc^2&lt;/annotation&gt;&lt;/semantics&gt;&lt;/math&gt;&lt;/span&gt;。1
+::&lt;/p&gt;
+&lt;h2&gt;又想到一些&lt;/h2&gt;
+&lt;p&gt;最后聊点感受：做技术这些年，越来越觉得最好的状态是既投入又抽离。投入是把事情做好，抽离是时不时跳出来看看方向对不对，两者缺一，要么辛苦没产出，要么轻松跑偏路。&lt;/p&gt;
+&lt;p&gt;写着写着想到，很多技术选择本质上都是在回答同一个问题：这个方案在出问题的时候是什么样子。不出问题的方案人人都写得出来，区分度全在故障时刻的表现。多想一层失败路径，很多纠结就自动有了答案。&lt;/p&gt;
+&lt;p&gt;这类经验在文档里通常只有一行字，背后的排查却是一整个下午。技术工作的大部分时间都花在这些不会写进简历的细节里，所以这些细节才更需要有人写出来，哪怕只是给未来某一天忘了的自己。&lt;/p&gt;
+&lt;p&gt;顺带聊聊方法论：遇到不熟悉的领域，我的习惯是先把最小闭环跑通，哪怕每一步都很粗糙。跑通之后再逐段替换成正经实现，过程中每一步都有可运行的版本。这个思路在工作和生活里都屡试不爽，比憋大招的成功率高得多。&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-redis&quot;&gt;SET greeting &quot;hello, dumping world!&quot;
+DUMP greeting
+DUMP not-exists-key
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;行内公式 &lt;span class=&quot;katex&quot;&gt;&lt;math xmlns=&quot;http://www.w3.org/1998/Math/MathML&quot;&gt;&lt;semantics&gt;&lt;mrow&gt;&lt;mi&gt;E&lt;/mi&gt;&lt;mo&gt;=&lt;/mo&gt;&lt;mi&gt;m&lt;/mi&gt;&lt;msup&gt;&lt;mi&gt;c&lt;/mi&gt;&lt;mn&gt;2&lt;/mn&gt;&lt;/msup&gt;&lt;/mrow&gt;&lt;annotation encoding=&quot;application/x-tex&quot;&gt;E=mc^2&lt;/annotation&gt;&lt;/semantics&gt;&lt;/math&gt;&lt;/span&gt; 与块级公式：&lt;/p&gt;
+&lt;span class=&quot;katex&quot;&gt;&lt;math xmlns=&quot;http://www.w3.org/1998/Math/MathML&quot; display=&quot;block&quot;&gt;&lt;semantics&gt;&lt;mrow&gt;&lt;msubsup&gt;&lt;mo&gt;∫&lt;/mo&gt;&lt;mn&gt;0&lt;/mn&gt;&lt;mn&gt;1&lt;/mn&gt;&lt;/msubsup&gt;&lt;msup&gt;&lt;mi&gt;x&lt;/mi&gt;&lt;mn&gt;2&lt;/mn&gt;&lt;/msup&gt;&lt;mtext&gt; &lt;/mtext&gt;&lt;mi&gt;d&lt;/mi&gt;&lt;mi&gt;x&lt;/mi&gt;&lt;mo&gt;=&lt;/mo&gt;&lt;mfrac&gt;&lt;mn&gt;1&lt;/mn&gt;&lt;mn&gt;3&lt;/mn&gt;&lt;/mfrac&gt;&lt;/mrow&gt;&lt;annotation encoding=&quot;application/x-tex&quot;&gt;\int_0^1 x^2 \, dx = \frac{1}{3}&lt;/annotation&gt;&lt;/semantics&gt;&lt;/math&gt;&lt;/span&gt;
+&lt;p&gt;流程图：&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-mermaid&quot;&gt;graph TD;
+  A[开始] --&gt; B{判断};
+  B --&gt;|是| C[执行];
+  B --&gt;|否| D[结束];
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h2&gt;最后&lt;/h2&gt;
+&lt;p&gt;搞技术久了习惯找根因，生活里的很多问题其实也适用：先定位，再动手，别一上来就凭感觉乱试。&lt;/p&gt;
+&lt;p&gt;暂时记到这，下次接着说。&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-mermaid&quot;&gt;flowchart TD
+    Start([用户请求]) --&gt; Auth{是否登录?}
+    Auth -- 否 --&gt; Login[跳转登录页]
+    Login --&gt; Verify{验证成功?}
+    Verify -- 否 --&gt; Err1[提示错误]
+    Err1 --&gt; Login
+    Verify -- 是 --&gt; Auth
+
+    Auth -- 是 --&gt; Perm{权限校验}
+    Perm -- 无权限 --&gt; Err2[返回 403]
+    Perm -- 有权限 --&gt; Route[路由分发]
+
+    Route --&gt; Case{业务类型}
+    Case -- 查询 --&gt; Q[调用查询服务]
+    Case -- 写入 --&gt; W[调用写入服务]
+    Case -- 删除 --&gt; Del[软删除]
+
+    Q --&gt; Cache{缓存命中?}
+    Cache -- 是 --&gt; Return1[返回缓存]
+    Cache -- 否 --&gt; DB[(查询数据库)]
+    DB --&gt; SetCache[写入缓存]
+    SetCache --&gt; Return1
+
+    W --&gt; Tx{事务开启}
+    Tx --&gt; DB2[(写入数据库)]
+    DB2 --&gt; Commit{提交成功?}
+    Commit -- 是 --&gt; Return2[返回成功]
+    Commit -- 否 --&gt; Rollback[回滚事务]
+    Rollback --&gt; Retry{重试次数 &amp;#x3C; 3?}
+    Retry -- 是 --&gt; W
+    Retry -- 否 --&gt; Fail[返回失败]
+
+    Del --&gt; Audit[写入审计日志]
+    Audit --&gt; Return3[返回删除结果]
+
+    Return1 --&gt; End([结束])
+    Return2 --&gt; End
+    Fail --&gt; End
+    Return3 --&gt; End
+    Err2 --&gt; End
+&lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code class=&quot;language-mermaid&quot;&gt;flowchart LR
+    subgraph Client[&quot;客户端层&quot;]
+        C1[Web]
+        C2[App]
+        C3[小程序]
+    end
+
+    subgraph Gateway[&quot;网关层&quot;]
+        G1[鉴权]
+        G2[限流]
+        G3[路由]
+    end
+
+    subgraph Service[&quot;服务层&quot;]
+        S1[用户服务]
+        S2[订单服务]
+        S3[支付服务]
+    end
+
+    subgraph Data[&quot;数据层&quot;]
+        D1[(MySQL)]
+        D2[(Redis)]
+        D3[(MQ)]
+    end
+
+    C1 --&gt; G1
+    C2 --&gt; G1
+    C3 --&gt; G1
+    G1 --&gt; G2 --&gt; G3
+    G3 --&gt; S1
+    G3 --&gt; S2
+    G3 --&gt; S3
+    S1 --&gt; D1
+    S1 --&gt; D2
+    S2 --&gt; D1
+    S2 --&gt; D3
+    S3 --&gt; D1
+    S3 --&gt; D3
+&lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code class=&quot;language-mermaid&quot;&gt;sequenceDiagram
+    autonumber
+    participant U as 用户
+    participant W as Web前端
+    participant G as 网关
+    participant S as 订单服务
+    participant DB as 数据库
+    participant MQ as 消息队列
+
+    U-&gt;&gt;W: 点击下单
+    W-&gt;&gt;G: POST /order/create
+    G-&gt;&gt;G: 鉴权 &amp;#x26; 限流
+    G-&gt;&gt;S: 转发请求
+    S-&gt;&gt;DB: 校验库存
+    DB--&gt;&gt;S: 库存充足
+    S-&gt;&gt;DB: 创建订单(事务)
+    DB--&gt;&gt;S: 订单ID
+    S-&gt;&gt;MQ: 发送支付超时消息
+    S--&gt;&gt;G: 返回订单信息
+    G--&gt;&gt;W: 200 OK
+    W--&gt;&gt;U: 展示支付页
+
+    Note over S,MQ: 异步消息延迟处理
+    MQ--&gt;&gt;S: 30分钟后支付超时
+    S-&gt;&gt;DB: 关闭订单 &amp;#x26; 释放库存
+
+    alt 支付成功
+        U-&gt;&gt;W: 完成支付
+        W-&gt;&gt;G: POST /pay/callback
+        G-&gt;&gt;S: 回调
+        S-&gt;&gt;DB: 更新订单状态
+        S--&gt;&gt;U: 支付成功通知
+    else 支付失败
+        S-&gt;&gt;DB: 标记失败
+        S--&gt;&gt;U: 推送失败消息
+    end
+&lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code class=&quot;language-mermaid&quot;&gt;stateDiagram-v2
+    [*] --&gt; 待支付
+
+    待支付 --&gt; 已支付: 支付成功
+    待支付 --&gt; 已取消: 超时/主动取消
+
+    已支付 --&gt; 待发货: 商家接单
+    已支付 --&gt; 退款中: 申请退款
+
+    待发货 --&gt; 已发货: 出库
+    已发货 --&gt; 已签收: 物流完成
+    已签收 --&gt; 已完成: 确认收货
+
+    退款中 --&gt; 已退款: 审核通过
+    退款中 --&gt; 已支付: 审核驳回
+
+    已取消 --&gt; [*]
+    已完成 --&gt; [*]
+    已退款 --&gt; [*]
+&lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code class=&quot;language-mermaid&quot;&gt;gantt
+    title 项目排期计划
+    dateFormat  YYYY-MM-DD
+    axisFormat  %m/%d
+
+    section 需求阶段
+    需求调研        :a1, 2024-01-01, 7d
+    需求评审        :a2, after a1, 3d
+
+    section 设计阶段
+    原型设计        :b1, after a2, 7d
+    UI设计          :b2, after a2, 10d
+    技术方案        :b3, after a2, 5d
+
+    section 开发阶段
+    后端开发        :crit, c1, after b3, 20d
+    前端开发        :crit, c2, after b2, 18d
+    联调            :c3, after c1, 5d
+
+    section 测试阶段
+    功能测试        :d1, after c3, 10d
+    性能测试        :d2, after c3, 7d
+    回归测试        :d3, after d1, 5d
+
+    section 上线
+    灰度发布        :e1, after d3, 3d
+    全量发布        :milestone, after e1, 0d
+&lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code class=&quot;language-markdown&quot;&gt;# Markdown 复杂流程渲染测试文档
+
+&gt; 用途：复制本文件内容，保存为 `markdown-flow-test.md`，在支持 Mermaid 的 Markdown 渲染器中打开测试。  
+&gt; 测试目标：验证流程图、时序图、状态图、甘特图、类图、ER 图、饼图、列表、表格、任务清单、代码块、脚注等渲染能力。
+
+---
+
+## 0. 测试检查清单
+
+- [ ] 标题层级正常
+- [ ] 引用块正常
+- [ ] 目录锚点可跳转
+- [ ] Mermaid 流程图正常渲染
+- [ ] Mermaid 时序图正常渲染
+- [ ] Mermaid 状态图正常渲染
+- [ ] Mermaid 甘特图正常渲染
+- [ ] Mermaid 类图正常渲染
+- [ ] Mermaid ER 图正常渲染
+- [ ] Mermaid 饼图正常渲染
+- [ ] Mermaid 用户旅程图正常渲染
+- [ ] 嵌套列表正常
+- [ ] 表格正常
+- [ ] 任务清单正常
+- [ ] 代码高亮正常
+- [ ] 脚注正常
+- [ ] 外部链接正常
+
+---
+
+## 目录
+
+1. [Mermaid 流程图](#1-mermaid-流程图)
+2. [Mermaid 时序图](#2-mermaid-时序图)
+3. [Mermaid 状态图](#3-mermaid-状态图)
+4. [Mermaid 甘特图](#4-mermaid-甘特图)
+5. [Mermaid 类图](#5-mermaid-类图)
+6. [Mermaid ER 图](#6-mermaid-er-图)
+7. [Mermaid 饼图与用户旅程图](#7-mermaid-饼图与用户旅程图)
+8. [嵌套列表流程](#8-嵌套列表流程)
+9. [ASCII 流程图](#9-ascii-流程图)
+10. [表格化流程矩阵](#10-表格化流程矩阵)
+11. [任务清单](#11-任务清单)
+12. [代码块与引用块](#12-代码块与引用块)
+13. [附录：脚注与链接](#13-附录脚注与链接)
+
+---
+
+## 1. Mermaid 流程图
+
+### 1.1 基础流程
+
+```mermaid
+flowchart TD
+    A[开始] --&gt; B{条件判断}
+    B -- 是 --&gt; C[执行操作]
+    B -- 否 --&gt; D[跳过]
+    C --&gt; E[结束]
+    D --&gt; E
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h3&gt;1.2 复杂分支流程&lt;/h3&gt;
+&lt;pre&gt;&lt;code class=&quot;language-mermaid&quot;&gt;flowchart TD
+    Start([用户请求]) --&gt; Auth{是否登录?}
+    Auth -- 否 --&gt; Login[跳转登录页]
+    Login --&gt; Verify{验证成功?}
+    Verify -- 否 --&gt; Err1[提示错误]
+    Err1 --&gt; Login
+    Verify -- 是 --&gt; Auth
+
+    Auth -- 是 --&gt; Perm{权限校验}
+    Perm -- 无权限 --&gt; Err2[返回 403]
+    Perm -- 有权限 --&gt; Route[路由分发]
+
+    Route --&gt; Case{业务类型}
+    Case -- 查询 --&gt; Q[调用查询服务]
+    Case -- 写入 --&gt; W[调用写入服务]
+    Case -- 删除 --&gt; Del[软删除]
+
+    Q --&gt; Cache{缓存命中?}
+    Cache -- 是 --&gt; Return1[返回缓存]
+    Cache -- 否 --&gt; DB[(查询数据库)]
+    DB --&gt; SetCache[写入缓存]
+    SetCache --&gt; Return1
+
+    W --&gt; Tx{事务开启}
+    Tx --&gt; DB2[(写入数据库)]
+    DB2 --&gt; Commit{提交成功?}
+    Commit -- 是 --&gt; Return2[返回成功]
+    Commit -- 否 --&gt; Rollback[回滚事务]
+    Rollback --&gt; Retry{重试次数 &amp;#x3C; 3?}
+    Retry -- 是 --&gt; W
+    Retry -- 否 --&gt; Fail[返回失败]
+
+    Del --&gt; Audit[写入审计日志]
+    Audit --&gt; Return3[返回删除结果]
+
+    Return1 --&gt; End([结束])
+    Return2 --&gt; End
+    Fail --&gt; End
+    Return3 --&gt; End
+    Err2 --&gt; End
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h3&gt;1.3 子图嵌套&lt;/h3&gt;
+&lt;pre&gt;&lt;code class=&quot;language-mermaid&quot;&gt;flowchart LR
+    subgraph Client[&quot;客户端层&quot;]
+        C1[Web]
+        C2[App]
+        C3[小程序]
+    end
+
+    subgraph Gateway[&quot;网关层&quot;]
+        G1[鉴权]
+        G2[限流]
+        G3[路由]
+    end
+
+    subgraph Service[&quot;服务层&quot;]
+        S1[用户服务]
+        S2[订单服务]
+        S3[支付服务]
+    end
+
+    subgraph Data[&quot;数据层&quot;]
+        D1[(MySQL)]
+        D2[(Redis)]
+        D3[(MQ)]
+    end
+
+    C1 --&gt; G1
+    C2 --&gt; G1
+    C3 --&gt; G1
+    G1 --&gt; G2 --&gt; G3
+    G3 --&gt; S1
+    G3 --&gt; S2
+    G3 --&gt; S3
+    S1 --&gt; D1
+    S1 --&gt; D2
+    S2 --&gt; D1
+    S2 --&gt; D3
+    S3 --&gt; D1
+    S3 --&gt; D3
+&lt;/code&gt;&lt;/pre&gt;
+&lt;hr&gt;
+&lt;h2&gt;2. Mermaid 时序图&lt;/h2&gt;
+&lt;pre&gt;&lt;code class=&quot;language-mermaid&quot;&gt;sequenceDiagram
+    autonumber
+    participant U as 用户
+    participant W as Web前端
+    participant G as 网关
+    participant S as 订单服务
+    participant DB as 数据库
+    participant MQ as 消息队列
+
+    U-&gt;&gt;W: 点击下单
+    W-&gt;&gt;G: POST /order/create
+    G-&gt;&gt;G: 鉴权与限流
+    G-&gt;&gt;S: 转发请求
+    S-&gt;&gt;DB: 校验库存
+    DB--&gt;&gt;S: 库存充足
+    S-&gt;&gt;DB: 创建订单(事务)
+    DB--&gt;&gt;S: 订单ID
+    S-&gt;&gt;MQ: 发送支付超时消息
+    S--&gt;&gt;G: 返回订单信息
+    G--&gt;&gt;W: 200 OK
+    W--&gt;&gt;U: 展示支付页
+
+    Note over S,MQ: 异步消息延迟处理
+    MQ--&gt;&gt;S: 30分钟后支付超时
+    S-&gt;&gt;DB: 关闭订单并释放库存
+
+    alt 支付成功
+        U-&gt;&gt;W: 完成支付
+        W-&gt;&gt;G: POST /pay/callback
+        G-&gt;&gt;S: 回调
+        S-&gt;&gt;DB: 更新订单状态
+        S--&gt;&gt;U: 支付成功通知
+    else 支付失败
+        S-&gt;&gt;DB: 标记失败
+        S--&gt;&gt;U: 推送失败消息
+    end
+&lt;/code&gt;&lt;/pre&gt;
+&lt;hr&gt;
+&lt;h2&gt;3. Mermaid 状态图&lt;/h2&gt;
+&lt;pre&gt;&lt;code class=&quot;language-mermaid&quot;&gt;stateDiagram-v2
+    [*] --&gt; 待支付
+
+    待支付 --&gt; 已支付: 支付成功
+    待支付 --&gt; 已取消: 超时/主动取消
+
+    已支付 --&gt; 待发货: 商家接单
+    已支付 --&gt; 退款中: 申请退款
+
+    待发货 --&gt; 已发货: 出库
+    已发货 --&gt; 已签收: 物流完成
+    已签收 --&gt; 已完成: 确认收货
+
+    退款中 --&gt; 已退款: 审核通过
+    退款中 --&gt; 已支付: 审核驳回
+
+    已取消 --&gt; [*]
+    已完成 --&gt; [*]
+    已退款 --&gt; [*]
+&lt;/code&gt;&lt;/pre&gt;
+&lt;hr&gt;
+&lt;h2&gt;4. Mermaid 甘特图&lt;/h2&gt;
+&lt;pre&gt;&lt;code class=&quot;language-mermaid&quot;&gt;gantt
+    title 项目排期计划
+    dateFormat  YYYY-MM-DD
+    axisFormat  %m/%d
+
+    section 需求阶段
+    需求调研        :a1, 2024-01-01, 7d
+    需求评审        :a2, after a1, 3d
+
+    section 设计阶段
+    原型设计        :b1, after a2, 7d
+    UI设计          :b2, after a2, 10d
+    技术方案        :b3, after a2, 5d
+
+    section 开发阶段
+    后端开发        :crit, c1, after b3, 20d
+    前端开发        :crit, c2, after b2, 18d
+    联调            :c3, after c1, 5d
+
+    section 测试阶段
+    功能测试        :d1, after c3, 10d
+    性能测试        :d2, after c3, 7d
+    回归测试        :d3, after d1, 5d
+
+    section 上线
+    灰度发布        :e1, after d3, 3d
+    全量发布        :milestone, after e1, 0d
+&lt;/code&gt;&lt;/pre&gt;
+&lt;hr&gt;
+&lt;h2&gt;5. Mermaid 类图&lt;/h2&gt;
+&lt;pre&gt;&lt;code class=&quot;language-mermaid&quot;&gt;classDiagram
+    class BaseEntity {
+        &amp;#x3C;&amp;#x3C;abstract&gt;&gt;
+        +Long id
+        +Date createTime
+        +Date updateTime
+        +save()
+        +delete()
+    }
+
+    class User {
+        -String username
+        -String password
+        -String email
+        +login()
+        +logout()
+    }
+
+    class Order {
+        -String orderNo
+        -BigDecimal amount
+        -OrderStatus status
+        +pay()
+        +cancel()
+        +refund()
+    }
+
+    class OrderItem {
+        -String sku
+        -int quantity
+        -BigDecimal price
+    }
+
+    class PayService {
+        &amp;#x3C;&amp;#x3C;interface&gt;&gt;
+        +pay(order) Result
+        +refund(order) Result
+    }
+
+    BaseEntity &amp;#x3C;|-- User
+    BaseEntity &amp;#x3C;|-- Order
+    BaseEntity &amp;#x3C;|-- OrderItem
+    Order &quot;1&quot; *-- &quot;N&quot; OrderItem : 包含
+    Order --&gt; PayService : 使用
+    User &quot;1&quot; --&gt; &quot;N&quot; Order : 下单
+&lt;/code&gt;&lt;/pre&gt;
+&lt;hr&gt;
+&lt;h2&gt;6. Mermaid ER 图&lt;/h2&gt;
+&lt;pre&gt;&lt;code class=&quot;language-mermaid&quot;&gt;erDiagram
+    USER ||--o{ ORDER : places
+    ORDER ||--|{ ORDER_ITEM : contains
+    ORDER ||--o| PAYMENT : has
+    PRODUCT ||--o{ ORDER_ITEM : references
+    USER ||--o{ ADDRESS : owns
+
+    USER {
+        bigint id PK
+        varchar username
+        varchar phone
+        timestamp create_time
+    }
+
+    ORDER {
+        bigint id PK
+        bigint user_id FK
+        varchar order_no UK
+        decimal amount
+        tinyint status
+        timestamp create_time
+    }
+
+    ORDER_ITEM {
+        bigint id PK
+        bigint order_id FK
+        bigint product_id FK
+        int quantity
+        decimal price
+    }
+
+    PAYMENT {
+        bigint id PK
+        bigint order_id FK
+        varchar trade_no
+        decimal amount
+        tinyint pay_type
+        tinyint status
+    }
+
+    PRODUCT {
+        bigint id PK
+        varchar name
+        decimal price
+        int stock
+    }
+
+    ADDRESS {
+        bigint id PK
+        bigint user_id FK
+        varchar receiver
+        varchar detail
+    }
+&lt;/code&gt;&lt;/pre&gt;
+&lt;hr&gt;
+&lt;h2&gt;7. Mermaid 饼图与用户旅程图&lt;/h2&gt;
+&lt;h3&gt;7.1 饼图&lt;/h3&gt;
+&lt;pre&gt;&lt;code class=&quot;language-mermaid&quot;&gt;pie showData
+    title 请求耗时分布
+    &quot;DB 查询&quot; : 42
+    &quot;RPC 调用&quot; : 28
+    &quot;缓存&quot; : 12
+    &quot;序列化&quot; : 10
+    &quot;其他&quot; : 8
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h3&gt;7.2 用户旅程图&lt;/h3&gt;
+&lt;pre&gt;&lt;code class=&quot;language-mermaid&quot;&gt;journey
+    title 用户下单旅程
+    section 浏览
+      打开首页: 5: 用户
+      搜索商品: 4: 用户
+      查看详情: 4: 用户
+    section 下单
+      加入购物车: 3: 用户
+      提交订单: 3: 用户
+      完成支付: 2: 用户, 支付系统
+    section 收货
+      查看物流: 4: 用户
+      确认收货: 5: 用户
+&lt;/code&gt;&lt;/pre&gt;
+&lt;hr&gt;
+&lt;h2&gt;8. 嵌套列表流程&lt;/h2&gt;
+&lt;h3&gt;8.1 有序嵌套：评审流程&lt;/h3&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;需求评审&lt;/strong&gt;
+&lt;ol&gt;
+&lt;li&gt;产品经理宣讲 PRD&lt;/li&gt;
+&lt;li&gt;研发评估工作量
+&lt;ul&gt;
+&lt;li&gt;后端：接口设计
+&lt;ul&gt;
+&lt;li&gt;数据库表设计&lt;/li&gt;
+&lt;li&gt;接口文档输出&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;前端：页面拆解
+&lt;ul&gt;
+&lt;li&gt;组件拆分&lt;/li&gt;
+&lt;li&gt;交互确认&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;QA 评估测试范围&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;技术方案评审&lt;/strong&gt;
+&lt;ul&gt;
+&lt;li&gt;架构设计&lt;/li&gt;
+&lt;li&gt;风险评估&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;开发排期&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;验收标准确认&lt;/strong&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h3&gt;8.2 无序嵌套：故障排查树&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;服务不可用
+&lt;ul&gt;
+&lt;li&gt;网络层
+&lt;ul&gt;
+&lt;li&gt;DNS 解析失败&lt;/li&gt;
+&lt;li&gt;负载均衡无后端&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;应用层
+&lt;ul&gt;
+&lt;li&gt;进程崩溃
+&lt;ul&gt;
+&lt;li&gt;OOM&lt;/li&gt;
+&lt;li&gt;死锁&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;线程池打满&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;数据层
+&lt;ul&gt;
+&lt;li&gt;数据库连接池耗尽&lt;/li&gt;
+&lt;li&gt;慢查询堆积&lt;/li&gt;
+&lt;li&gt;主从延迟&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3&gt;8.3 混合嵌套与强调&lt;/h3&gt;
+&lt;ol&gt;
+&lt;li&gt;入口层
+&lt;ul class=&quot;contains-task-list&quot;&gt;
+&lt;li class=&quot;task-list-item&quot;&gt;&lt;input type=&quot;checkbox&quot; checked disabled&gt; Nginx 转发&lt;/li&gt;
+&lt;li class=&quot;task-list-item&quot;&gt;&lt;input type=&quot;checkbox&quot; disabled&gt; &lt;strong&gt;WAF 拦截&lt;/strong&gt;（待验证）
+&lt;blockquote&gt;
+&lt;p&gt;注意：WAF 规则可能误杀正常请求&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;服务层
+&lt;ol&gt;
+&lt;li&gt;&lt;em&gt;鉴权服务&lt;/em&gt;&lt;/li&gt;
+&lt;li&gt;&lt;em&gt;业务服务&lt;/em&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;order-service&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;user-service&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;存储层
+&lt;ul&gt;
+&lt;li&gt;MySQL（主从）&lt;/li&gt;
+&lt;li&gt;&lt;del&gt;MongoDB（已废弃）&lt;/del&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;hr&gt;
+&lt;h2&gt;9. ASCII 流程图&lt;/h2&gt;
+&lt;pre&gt;&lt;code class=&quot;language-text&quot;&gt;┌─────────────┐
+│   客户端     │
+└──────┬──────┘
+       │ HTTPS
+       ▼
+┌─────────────┐     失败     ┌─────────────┐
+│   网关       │────────────▶│  熔断降级    │
+└──────┬──────┘              └─────────────┘
+       │ 成功                        │
+       ▼                             │
+┌─────────────┐                      │
+│  业务服务    │◀─────────────────────┘
+└──────┬──────┘
+       │
+   ┌───┴────┬────────┐
+   ▼        ▼        ▼
+┌──────┐ ┌──────┐ ┌──────┐
+│Redis │ │MySQL │ │ MQ   │
+└──────┘ └──────┘ └──────┘
+&lt;/code&gt;&lt;/pre&gt;
+&lt;hr&gt;
+&lt;h2&gt;10. 表格化流程矩阵&lt;/h2&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th align=&quot;center&quot;&gt;步骤&lt;/th&gt;
+&lt;th align=&quot;left&quot;&gt;阶段&lt;/th&gt;
+&lt;th align=&quot;left&quot;&gt;负责人&lt;/th&gt;
+&lt;th align=&quot;left&quot;&gt;输入&lt;/th&gt;
+&lt;th align=&quot;left&quot;&gt;输出&lt;/th&gt;
+&lt;th align=&quot;center&quot;&gt;状态&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td align=&quot;center&quot;&gt;1&lt;/td&gt;
+&lt;td align=&quot;left&quot;&gt;需求&lt;/td&gt;
+&lt;td align=&quot;left&quot;&gt;PM&lt;/td&gt;
+&lt;td align=&quot;left&quot;&gt;业务方诉求&lt;/td&gt;
+&lt;td align=&quot;left&quot;&gt;PRD&lt;/td&gt;
+&lt;td align=&quot;center&quot;&gt;完成&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td align=&quot;center&quot;&gt;2&lt;/td&gt;
+&lt;td align=&quot;left&quot;&gt;评审&lt;/td&gt;
+&lt;td align=&quot;left&quot;&gt;Tech Lead&lt;/td&gt;
+&lt;td align=&quot;left&quot;&gt;PRD&lt;/td&gt;
+&lt;td align=&quot;left&quot;&gt;评审纪要&lt;/td&gt;
+&lt;td align=&quot;center&quot;&gt;完成&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td align=&quot;center&quot;&gt;3&lt;/td&gt;
+&lt;td align=&quot;left&quot;&gt;设计&lt;/td&gt;
+&lt;td align=&quot;left&quot;&gt;架构师&lt;/td&gt;
+&lt;td align=&quot;left&quot;&gt;评审纪要&lt;/td&gt;
+&lt;td align=&quot;left&quot;&gt;技术方案&lt;/td&gt;
+&lt;td align=&quot;center&quot;&gt;进行中&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td align=&quot;center&quot;&gt;4&lt;/td&gt;
+&lt;td align=&quot;left&quot;&gt;开发&lt;/td&gt;
+&lt;td align=&quot;left&quot;&gt;Dev&lt;/td&gt;
+&lt;td align=&quot;left&quot;&gt;技术方案&lt;/td&gt;
+&lt;td align=&quot;left&quot;&gt;可测版本&lt;/td&gt;
+&lt;td align=&quot;center&quot;&gt;未开始&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td align=&quot;center&quot;&gt;5&lt;/td&gt;
+&lt;td align=&quot;left&quot;&gt;测试&lt;/td&gt;
+&lt;td align=&quot;left&quot;&gt;QA&lt;/td&gt;
+&lt;td align=&quot;left&quot;&gt;可测版本&lt;/td&gt;
+&lt;td align=&quot;left&quot;&gt;测试报告&lt;/td&gt;
+&lt;td align=&quot;center&quot;&gt;未开始&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td align=&quot;center&quot;&gt;6&lt;/td&gt;
+&lt;td align=&quot;left&quot;&gt;上线&lt;/td&gt;
+&lt;td align=&quot;left&quot;&gt;DevOps&lt;/td&gt;
+&lt;td align=&quot;left&quot;&gt;测试报告&lt;/td&gt;
+&lt;td align=&quot;left&quot;&gt;生产版本&lt;/td&gt;
+&lt;td align=&quot;center&quot;&gt;未开始&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2&gt;11. 任务清单&lt;/h2&gt;
+&lt;ul class=&quot;contains-task-list&quot;&gt;
+&lt;li class=&quot;task-list-item&quot;&gt;&lt;input type=&quot;checkbox&quot; checked disabled&gt; 流程图绘制&lt;/li&gt;
+&lt;li class=&quot;task-list-item&quot;&gt;&lt;input type=&quot;checkbox&quot; checked disabled&gt; 时序图绘制&lt;/li&gt;
+&lt;li class=&quot;task-list-item&quot;&gt;&lt;input type=&quot;checkbox&quot; disabled&gt; 状态机文档补充
+&lt;ul class=&quot;contains-task-list&quot;&gt;
+&lt;li class=&quot;task-list-item&quot;&gt;&lt;input type=&quot;checkbox&quot; disabled&gt; 异常状态&lt;/li&gt;
+&lt;li class=&quot;task-list-item&quot;&gt;&lt;input type=&quot;checkbox&quot; disabled&gt; 补偿逻辑&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li class=&quot;task-list-item&quot;&gt;&lt;input type=&quot;checkbox&quot; disabled&gt; 压测方案&lt;/li&gt;
+&lt;li class=&quot;task-list-item&quot;&gt;&lt;input type=&quot;checkbox&quot; disabled&gt; 灰度策略&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2&gt;12. 代码块与引用块&lt;/h2&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;strong&gt;提示&lt;/strong&gt;
+以下代码展示流程的伪代码实现。&lt;br&gt;
+支持多行引用嵌套。&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;pre&gt;&lt;code class=&quot;language-python&quot;&gt;def order_flow(user, cart):
+    &quot;&quot;&quot;下单主流程&quot;&quot;&quot;
+    if not user.is_authenticated:
+        raise AuthError(&quot;未登录&quot;)
+
+    if not user.has_permission(&quot;order:create&quot;):
+        raise PermissionError(&quot;无权限&quot;)
+
+    with transaction() as tx:
+        stock = inventory.check(cart.items)
+        if not stock.ok:
+            return Result.fail(&quot;库存不足&quot;)
+
+        order = Order.create(user, cart)
+        inventory.lock(cart.items)
+        tx.commit()
+
+    mq.send(&quot;order.timeout&quot;, order.id, delay=1800)
+    return Result.ok(order.id)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code class=&quot;language-bash&quot;&gt;# 部署流程
+./build.sh &amp;#x26;&amp;#x26; \
+  ./test.sh &amp;#x26;&amp;#x26; \
+  docker build -t app:${VERSION} . &amp;#x26;&amp;#x26; \
+  docker push app:${VERSION} &amp;#x26;&amp;#x26; \
+  kubectl set image deploy/app app=app:${VERSION} &amp;#x26;&amp;#x26; \
+  kubectl rollout status deploy/app
+&lt;/code&gt;&lt;/pre&gt;
+&lt;hr&gt;
+&lt;h2&gt;13. 附录：脚注与链接&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;状态图基于&lt;a href=&quot;https://en.wikipedia.org/wiki/Finite-state_machine&quot;&gt;有限状态机&lt;/a&gt;模型。&lt;sup&gt;&lt;a href=&quot;https://lvxi0605.github.io/posts/coffee/pourover-start#user-content-fn-1&quot; id=&quot;user-content-fnref-1&quot; data-footnote-ref=&quot;&quot; aria-describedby=&quot;footnote-label&quot;&gt;1&lt;/a&gt;&lt;/sup&gt;&lt;/li&gt;
+&lt;li&gt;Mermaid 官方文档见 &lt;a href=&quot;https://mermaid.js.org/&quot;&gt;mermaid.js.org&lt;/a&gt;。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;p&gt;&lt;strong&gt;测试结束标记：MARKDOWN-FLOW-TEST-END&lt;/strong&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;
+[Markdown语法](https://markdown.com.cn)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;section data-footnotes=&quot;&quot; class=&quot;footnotes&quot;&gt;&lt;h2 class=&quot;sr-only&quot; id=&quot;footnote-label&quot;&gt;Footnotes&lt;/h2&gt;
+&lt;ol&gt;
+&lt;li id=&quot;user-content-fn-1&quot;&gt;
+&lt;p&gt;订单状态机需覆盖支付、退款、取消等异常分支。 &lt;a href=&quot;https://lvxi0605.github.io/posts/coffee/pourover-start#user-content-fnref-1&quot; data-footnote-backref=&quot;&quot; aria-label=&quot;Back to reference 1&quot; class=&quot;data-footnote-backref&quot;&gt;↩&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/section&gt;</content:encoded>
+    </item>
+    <item>
+      <title>CompletableFuture 异步编排实战（五）</title>
+      <link>https://lvxi0605.github.io/posts/java/completable-future-5</link>
+      <guid isPermaLink="true">https://lvxi0605.github.io/posts/java/completable-future-5</guid>
+      <pubDate>Thu, 12 Nov 2026 00:00:00 GMT</pubDate>
+      <description>周五晚上泡了杯茶，把这阵子零散的笔记归拢成这一篇，也算是给这周收个尾。</description>
+      <content:encoded>&lt;p&gt;周五晚上泡了杯茶，把这阵子零散的笔记归拢成这一篇，也算是给这周收个尾。&lt;/p&gt;
+&lt;!--more--&gt;
+&lt;h2&gt;它解决什么问题&lt;/h2&gt;
+&lt;p&gt;聚合接口的场景很典型：一个页面要并行调五六个下游，最后拼装返回。用 Future 只能阻塞着 get，白瞎了并行的意义；CompletableFuture 提供了 thenApply、thenCombine、allOf 这套编排接口，谁依赖谁、谁并行谁串行，在代码里是一目了然的图。&lt;/p&gt;
+&lt;p&gt;用下来最重要的心得是必须显式传线程池，不传的话 thenApply 这些回调默认跑在完成任务的线程或者 ForkJoinPool 公共池上，一旦公共池被慢任务占满，整个进程的并行流和异步任务都会被拖下水。自定义一个业务线程池传进去，这个问题就绕开了。&lt;/p&gt;
+&lt;h2&gt;异常和超时的处理&lt;/h2&gt;
+&lt;p&gt;异常处理用 exceptionally 或 handle，链路上任何一环抛错都会传到处理点，类似 try-catch 的作用域；超时用 orTimeout，JDK 9 以后才有的方法，低版本要自己封装。另外提醒一句，编排层次超过两三层之后可读性会明显下降，该拆方法拆方法，该上响应式框架就上框架，别把 CompletableFuture 写成一坨嵌套，那还不如串行清晰。&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-java[Aggregate.java]&quot;&gt;var userF = CompletableFuture.supplyAsync(() -&gt; userApi.get(uid), pool);
+var orderF = CompletableFuture.supplyAsync(() -&gt; orderApi.list(uid), pool);
+var pointF  = CompletableFuture.supplyAsync(() -&gt; pointApi.sum(uid), pool);
+
+CompletableFuture.allOf(userF, orderF, pointF).join();
+return new Page(userF.join(), orderF.join(), pointF.join());
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h2&gt;过程中的两个坑&lt;/h2&gt;
+&lt;p&gt;导出报表把服务打 OOM，一次性查全量再一次性写 Excel。改成游标分批查加流式写，内存稳稳的。任何全量操作，都值得先问一句：数据量多大，以后还会更大吗。&lt;/p&gt;
+&lt;p&gt;前端双击重复提交导致创建了重复单据。token 机制先挡一层，唯一索引再兜一层，两层防线齐了才踏实。幂等这件事，永远要在离数据最近的地方兜底。&lt;/p&gt;
+&lt;p&gt;HTTPS 证书配完，桌面浏览器都正常，部分安卓机型握手失败。是证书链不完整，中间证书没部署。证书工具会提示，但前提是你出问题之前主动去验证一次。&lt;/p&gt;
+&lt;h2&gt;延伸几句&lt;/h2&gt;
+&lt;p&gt;单元测试这件事，说起来都认同，写起来都嫌烦。我的折中方案是不追求覆盖率，只给核心逻辑写测试：边界条件、状态流转、容易改坏的地方。这几处有测试兜底，重构才有底气，其他地方随缘就好。&lt;/p&gt;
+&lt;p&gt;代码评审这些年我固定看三样东西：资源有没有释放、并发有没有保护、失败路径有没有处理。功能对不对通常作者自己会验证，这三样恰恰是测试跑不出来的，也是线上事故的高发区，评审时值得多花两分钟。&lt;/p&gt;
+&lt;p&gt;顺带说个写 Java 这些年的感受：语言本身的语法点翻来覆去就那些，真正拉开差距的是运行时的理解。同样一段代码，知道它在内存里怎么流转的人，能预判问题发生在哪里；只背八股的人，只能在报错之后被动接招。这也是我一直建议把源码读起来的原因。&lt;/p&gt;
+&lt;p&gt;排查并发问题有一套通用的思路值得记下：先确认是不是真并发，很多“偶现”最后发现是数据问题；再看是可见性、原子性还是有序性中的哪一类；最后才落到具体工具。顺序对了，方向就不会错，大多数时候我们是被表象带偏的。&lt;/p&gt;
+&lt;p&gt;JDK 升级是这几年绕不开的话题，新版本带来的不只是语法糖，GC、启动速度、容器适配都有实打实的改进。我的建议是业务项目不必追新，但每隔一两个 LTS 版本做一次升级评估，欠债太久之后还起来会更痛苦。&lt;/p&gt;
+&lt;h2&gt;又想到一些&lt;/h2&gt;
+&lt;p&gt;讲个题外话，做这类事情的时候最好留个记录的习惯，当时的判断依据比结果更珍贵。结果好可能只是运气好，把决策过程记下来，好运才可能被复制，坏运才可能被规避。&lt;/p&gt;
+&lt;p&gt;然后想说，承认不懂是这行的美德。这次遇到不懂的地方，老老实实补了两天的课，比硬着头皮往上糊的方案强太多。不懂装懂的代价从来不会消失，只是延期，还带利息。&lt;/p&gt;
+&lt;p&gt;平衡感很重要的一件事：投入和收益的比例。所有优化都值得先问一句，这件事的收益上限是多少，值多少投入。无限打磨一个低价值的东西是工程师最常见的温柔陷阱，包括我自己在内。&lt;/p&gt;
+&lt;p&gt;忍不住再夸一下记录的力量，上周刚整理的笔记，这次直接翻出来就用，十分钟解决了当时花一下午的问题。给自己留下的每一份笔记，都是寄给未来的快递，寄件人签收时才觉得真香。&lt;/p&gt;
+&lt;h2&gt;最后&lt;/h2&gt;
+&lt;p&gt;写这篇之前刚给阳台的绿萝浇了水，照顾植物和写博客有个共同点，都靠长期的小坚持。&lt;/p&gt;
+&lt;p&gt;记录完毕，方便以后自己回来翻。&lt;/p&gt;</content:encoded>
+    </item>
+    <item>
+      <title>synchronized 的锁升级过程</title>
+      <link>https://lvxi0605.github.io/posts/java/synchronized-upgrade</link>
+      <guid isPermaLink="true">https://lvxi0605.github.io/posts/java/synchronized-upgrade</guid>
+      <pubDate>Thu, 12 Nov 2026 00:00:00 GMT</pubDate>
+      <description>这个话题其实挺老的，但每次实际用到还是会踩出点新东西，索性记一篇备查，也给后来的同学提个醒。</description>
+      <content:encoded>&lt;p&gt;这个话题其实挺老的，但每次实际用到还是会踩出点新东西，索性记一篇备查，也给后来的同学提个醒。&lt;/p&gt;
+&lt;!--more--&gt;
+&lt;h2&gt;从重量级锁说起&lt;/h2&gt;
+&lt;p&gt;早期 synchronized 直接对应操作系统的互斥量，涉及用户态到内核态的切换，开销大，所以一直背着重量级锁的名声。JDK 6 之后引入了锁升级机制，对象头里的 Mark Word 会随着竞争情况在无锁、偏向锁、轻量级锁、重量级锁之间流转，大多数场景下根本走不到最重的那个状态。&lt;/p&gt;
+&lt;p&gt;偏向锁适合始终只有一个线程访问的场合，第一次获取后把线程 ID 记进 Mark Word，之后进入同步块只需要一次比较；一旦出现第二个线程，偏向就撤销，升级为轻量级锁，靠栈上的锁记录和 CAS 自旋来竞争；自旋失败次数多了、或者有第三个线程加入，才会膨胀成重量级锁，线程真正挂起排队。&lt;/p&gt;
+&lt;h2&gt;实践中要知道的几点&lt;/h2&gt;
+&lt;p&gt;理解锁升级对实践的价值在于两点：一是不要高估 synchronized 的开销，无竞争路径上它已经足够快，该用就用；二是要知道哪些代码模式会破坏这些优化，比如一个线程反复获取释放同一个锁、锁对象被 hashCode 打断偏向、或者同步块里包了慢 IO。另外注意，高版本 JDK 已经废弃了偏向锁，默认直接从轻量级锁开始，读旧资料的时候要留意版本背景。&lt;/p&gt;
+&lt;h2&gt;踩坑记录&lt;/h2&gt;
+&lt;p&gt;镜像优化前是 1.2G，换 alpine 基础镜像加上多阶段构建，砍到两百兆以内，拉取时间肉眼可见地降下来。构建上下文里别把无关文件拷进去，.dockerignore 值得认真配一次。&lt;/p&gt;
+&lt;p&gt;上传接口一直 413，代码怎么改都没用，最后才反应过来是 Nginx 的 client_max_body_size 默认 1m 挡住了。这种不在应用层的问题，排查方向一开始就该往链路上想。&lt;/p&gt;
+&lt;p&gt;线上 full GC 频繁但堆使用率不高，后来发现是大对象直接进了老年代。调整缓存分页大小加上堆参数之后稳住了，监控里老年代的曲线是最值得天天瞄一眼的东西。&lt;/p&gt;
+&lt;h2&gt;多聊两句&lt;/h2&gt;
+&lt;p&gt;JDK 升级是这几年绕不开的话题，新版本带来的不只是语法糖，GC、启动速度、容器适配都有实打实的改进。我的建议是业务项目不必追新，但每隔一两个 LTS 版本做一次升级评估，欠债太久之后还起来会更痛苦。&lt;/p&gt;
+&lt;p&gt;写业务代码久了容易有一种惯性，什么需求都往 CRUD 上靠。其实很多看起来普通的功能，往下一层都是并发、事务、一致性这些经典问题。把业务代码写出技术含量，靠的不是堆框架，是把这些底层问题识别出来认真处理。&lt;/p&gt;
+&lt;p&gt;单元测试这件事，说起来都认同，写起来都嫌烦。我的折中方案是不追求覆盖率，只给核心逻辑写测试：边界条件、状态流转、容易改坏的地方。这几处有测试兜底，重构才有底气，其他地方随缘就好。&lt;/p&gt;
+&lt;p&gt;代码评审这些年我固定看三样东西：资源有没有释放、并发有没有保护、失败路径有没有处理。功能对不对通常作者自己会验证，这三样恰恰是测试跑不出来的，也是线上事故的高发区，评审时值得多花两分钟。&lt;/p&gt;
+&lt;h2&gt;继续聊聊&lt;/h2&gt;
+&lt;p&gt;这种事急不来，和锻炼身体是一个道理：练一天没变化，练三个月身体自己会说话。技术积累也是这样，每天一点，回过头看的时候差距已经拉开了，只是身在其中感觉不到而已。&lt;/p&gt;
+&lt;p&gt;想到一个问题：为什么同样的事情，不同的人做出来差别那么大。后来觉得答案在于对边界的处理，正常路径人人会写，边界和异常的处理习惯才是拉开差距的地方。做事和写代码一样，细节的密度决定成品的质量。&lt;/p&gt;
+&lt;p&gt;写到这里顺便吐个槽，这类事情最难的部分往往不是技术本身，是说服别人相信它值得投入。方案再好，落不到排期上都是空谈，所以学会用数据的语言讲价值，算是这些年额外的必修课。&lt;/p&gt;
+&lt;p&gt;有时候会想，学一门新技术到底学到的是什么。语法和 API 会过时，真正的收获是它看问题的角度。多一门语言就多一副眼镜，同一副牌桌，能看到别人看不到的牌路，这是这么多年折腾下来最确定的回报。&lt;/p&gt;
+&lt;h2&gt;最后&lt;/h2&gt;
+&lt;p&gt;上午改代码，下午陪家人逛了趟超市，晚上坐下来写这篇，一天过得挺满。&lt;/p&gt;
+&lt;p&gt;记录完毕，方便以后自己回来翻。&lt;/p&gt;</content:encoded>
+    </item>
+    <item>
+      <title>JVM 运行时内存区域梳理（五）</title>
+      <link>https://lvxi0605.github.io/posts/jvm/jvm-memory-area-5</link>
+      <guid isPermaLink="true">https://lvxi0605.github.io/posts/jvm/jvm-memory-area-5</guid>
+      <pubDate>Thu, 12 Nov 2026 00:00:00 GMT</pubDate>
+      <description>写技术文章对我来说主要是个复盘的过程，写不清楚的地方往往就是还没想清楚的地方。</description>
+      <content:encoded>&lt;p&gt;写技术文章对我来说主要是个复盘的过程，写不清楚的地方往往就是还没想清楚的地方。&lt;/p&gt;
+&lt;!--more--&gt;
+&lt;h2&gt;线程私有与共享&lt;/h2&gt;
+&lt;p&gt;运行时数据区可以按线程维度分两半。线程私有的三块：程序计数器记录当前执行位置，是唯一不会 OOM 的区域；虚拟机栈存放栈帧，方法调用的局部变量表和操作数栈都在里面，递归太深爆的就是 StackOverflowError；本地方法栈服务于 native 方法。线程共享的是堆和方法区，堆是对象的主战场，方法区在 JDK 8 之后由元空间实现，类的元数据挪到了本地内存。&lt;/p&gt;
+&lt;p&gt;堆内部通常再按代划分：新生代的 Eden 和两个 Survivor，加上老年代。对象优先在 Eden 分配，熬过几轮 Minor GC 之后晋升老年代，大对象可以直达老年代。分代的核心假设是弱代假说，大部分对象朝生夕死，把不同寿命的对象分开管理，回收效率才高。&lt;/p&gt;
+&lt;h2&gt;调参数的前提&lt;/h2&gt;
+&lt;p&gt;理解内存区域的另一个用处是看懂 OOM：堆溢出、元空间溢出、栈溢出、直接内存溢出，各自的报错信息和排查方向完全不同。调参数之前先把这张地图刻在脑子里，否则 -Xmx、-Xmn、-XX:MaxMetaspaceSize 这些参数就是死记硬背，换个场景就不会用了。我的建议是画出自己应用的对象年龄分布和老年代增长曲线，比背任何口诀都有用。&lt;/p&gt;
+&lt;h2&gt;顺手记两个坑&lt;/h2&gt;
+&lt;p&gt;前端拿 Long 类型的 id 显示成了另一个数，JS 的 Number 精度上限就到 2 的 53 次方。序列化时把 Long 转 String，这是前后端协作里经典的暗坑，吃过一次亏就会记一辈子。&lt;/p&gt;
+&lt;p&gt;定时任务上线后时间全不对，cron 是按服务器时区算的，容器里又是 UTC。统一时区这种事，应该在基础设施层一次做对，而不是每个应用各自打补丁。&lt;/p&gt;
+&lt;p&gt;分页参数没做上限校验，被前端误传了个 pageSize 一万，数据库当场趴下。所有来自外部的参数都不可信，这句话说了十年，依然每年有人用事故重新验证一遍。&lt;/p&gt;
+&lt;h2&gt;一点延伸&lt;/h2&gt;
+&lt;p&gt;补充一个看问题的角度：JVM 的各种机制不是孤立的知识点，把它们串起来的主线是“如何让内存和 CPU 的使用更高效”。理解了这条主线，很多设计就不需要死记硬背，比如为什么分代、为什么要 JIT、为什么有线程本地缓冲。&lt;/p&gt;
+&lt;p&gt;线上 JVM 问题有一个基本盘：内存问题看趋势，CPU 问题看线程，两者都依赖平时留好监控和日志。事故时刻的第一手现场最珍贵，参数要在平时配好，出事才不会两手空空。&lt;/p&gt;
+&lt;p&gt;调优这个词容易让人兴奋，但实践里大多数所谓的调优，其实是把不合理的配置纠正回合理范围。真正的精细调优空间很小，而且高度依赖具体负载，别把调优神化，更别在没有监控数据的情况下凭感觉动参数。&lt;/p&gt;
+&lt;p&gt;版本迭代对 JVM 知识的影响比想象中大，很多流行于博客的结论在新的 JDK 里已经变了。看资料先看版本背景，自己动手验证一遍，这个习惯能避免把过时的结论当成真理用很多年。&lt;/p&gt;
+&lt;h2&gt;再补充几句&lt;/h2&gt;
+&lt;p&gt;写着写着想到，很多技术选择本质上都是在回答同一个问题：这个方案在出问题的时候是什么样子。不出问题的方案人人都写得出来，区分度全在故障时刻的表现。多想一层失败路径，很多纠结就自动有了答案。&lt;/p&gt;
+&lt;p&gt;这类经验在文档里通常只有一行字，背后的排查却是一整个下午。技术工作的大部分时间都花在这些不会写进简历的细节里，所以这些细节才更需要有人写出来，哪怕只是给未来某一天忘了的自己。&lt;/p&gt;
+&lt;p&gt;顺带聊聊方法论：遇到不熟悉的领域，我的习惯是先把最小闭环跑通，哪怕每一步都很粗糙。跑通之后再逐段替换成正经实现，过程中每一步都有可运行的版本。这个思路在工作和生活里都屡试不爽，比憋大招的成功率高得多。&lt;/p&gt;
+&lt;p&gt;另外觉得这件事里有个普遍适用的规律：复杂度不会消失，只会转移。你省掉的每一步设计，最后都会在排查、扩容或者交接的某个时刻加倍还回来。所谓好的方案，不过是把复杂度放到了值得的位置。&lt;/p&gt;
+&lt;h2&gt;小结&lt;/h2&gt;
+&lt;p&gt;最近加班多了些，更新慢了一点，周五晚上泡杯茶写下这篇，算是给自己留点节奏。&lt;/p&gt;
+&lt;p&gt;就写到这吧，锅里还炖着东西，得去看一眼。&lt;/p&gt;</content:encoded>
+    </item>
+    <item>
+      <title>回老家的见闻（四）</title>
+      <link>https://lvxi0605.github.io/posts/life/hometown-changes-4</link>
+      <guid isPermaLink="true">https://lvxi0605.github.io/posts/life/hometown-changes-4</guid>
+      <pubDate>Thu, 12 Nov 2026 00:00:00 GMT</pubDate>
+      <description>最近节奏慢了一些，多了点观察生活的时间，这篇就是这么来的。</description>
+      <content:encoded>&lt;p&gt;最近节奏慢了一些，多了点观察生活的时间，这篇就是这么来的。&lt;/p&gt;
+&lt;!--more--&gt;
+&lt;h2&gt;路是新的，人是旧的&lt;/h2&gt;
+&lt;p&gt;国庆回老家，发现镇上通了新的柏油路，导航都来不及更新的那种新。小时候觉得特别长的那条上学路，开车两分钟就走完了，路两边的店铺换了一轮，但理发店还开着，老板的发型和二十年前一样，也是某种意义上的业务稳定。&lt;/p&gt;
+&lt;p&gt;亲戚家的小孩在饭桌上讨论大学志愿，问我软件工程怎么样。我讲了讲这行的好处和最近的变化，讲完自己都有点恍惚，当年我选这个专业的时候，对&quot;软件工程师&quot;这五个字的想象和现在完全是两个行业了。&lt;/p&gt;
+&lt;h2&gt;一些没变的东西&lt;/h2&gt;
+&lt;p&gt;有些东西倒是一点没变。清早的菜市场还是那个声音密度，家里那条狗换了三代但见我的态度一样，外婆灶台上那口汤锅永远在火上。在城市待久了，回去的几天作息会自动切换到日出而作，睡得早起得早，脸色都好一些。&lt;/p&gt;
+&lt;p&gt;返程的高铁上看着窗外往后跑，忽然觉得老家和城市的区别其实是时间流速的区别，一个按季度过，一个按周度过。一年回去两三次，每次都在提醒我，还有一种节奏存在着。&lt;/p&gt;
+&lt;h2&gt;过程中的小心得&lt;/h2&gt;
+&lt;p&gt;给花换盆的时机不对，大夏天动的土，缓了半个月才缓过来，叶子黄了一半。换盆要赶在春秋，园艺上的讲究背后都是植物的生理规律。&lt;/p&gt;
+&lt;p&gt;夜跑那阵子穿深色衣服，路过没有路灯的路段被司机按喇叭提醒，回想起来一阵后怕。后来买了反光背心，几十块钱买安心。&lt;/p&gt;
+&lt;p&gt;空调滤网两年没洗，风越来越小还带味道，拆开一看吓一跳。一小时清理完，制冷立刻给力。家用电器的保养周期，说明书上写的那些建议真不是随口说说。&lt;/p&gt;
+&lt;h2&gt;延伸几句&lt;/h2&gt;
+&lt;p&gt;写生活记录这几年有个体会：当时觉得不值得写的小事，事后回看反而是最鲜活的片段。反而是那些酝酿很久想认真写的“大主题”，多数烂在了草稿箱。所以现在我的原则是趁热写，先记下来，好不好以后再说。&lt;/p&gt;
+&lt;p&gt;生活里很多烦恼，拆开看其实是信息问题而不是命运问题：不知道怎么挑、不知道怎么做、不知道别人是怎么解决的。而信息问题基本都能靠学习和请教解决，这么一想，很多焦虑就有了着手点。&lt;/p&gt;
+&lt;p&gt;独居和成家各有各的修行，我现在的体会是无论哪种状态，把生活的基础盘打理好都是第一位的：睡眠、饮食、居住环境、几个说得上话的朋友。基础盘稳了，其他的变化来了都能接得住。&lt;/p&gt;
+&lt;p&gt;成年人的学习和学生时代最大的不同是反馈周期，没人给你打分，效果要几个月甚至几年后才显现。所以坚持的动力只能来自内部：记录对照、阶段复盘、给自己一点小奖励，这些机制比意志力可靠得多。&lt;/p&gt;
+&lt;h2&gt;又想到一些&lt;/h2&gt;
+&lt;p&gt;记一个产生过的动摇：做到一半觉得这玩意儿是不是没什么意义。后来想通了，意义不是事情自带的，是你把它做完并沉淀下来之后长出来的。烂尾的才真的没意义，做完的最差也是一篇笔记。&lt;/p&gt;
+&lt;p&gt;顺便说说协作里的体会：这类事自己闷头做效率最高，但闷头做完往往返工最多。适度地提前同步，把方向先对齐，看似慢了半天，实际省掉的是几天的返工。沟通的时机比沟通的技巧更值得琢磨。&lt;/p&gt;
+&lt;p&gt;其实回看这些年踩的坑，大坑几乎都和贪快有关。快不是错，错的是想跳过必要步骤的快，地基没打牢盖得越快塌得越响。慢下来把该做的做扎实，反而是最快的路径，这话说了很多年，每次验证都对。&lt;/p&gt;
+&lt;p&gt;有个观察分享给大家：技术的成长曲线不是线性的，是一段平台加一次跃迁。平台期最磨人，感觉学了很多没进步，其实是在攒素材，攒够了某个契机一到就突飞猛进。所以在平台期别否定自己，那是跃迁的前奏。&lt;/p&gt;
+&lt;h2&gt;写在最后&lt;/h2&gt;
+&lt;p&gt;我给这事做了个简单的表格记录，朋友说我无药可救，但两个月的曲线摆在眼前，比嘴上的感觉可靠多了。&lt;/p&gt;
+&lt;p&gt;这篇就写到这，希望对你有点参考价值。&lt;/p&gt;</content:encoded>
+    </item>
+    <item>
+      <title>两天一晚的海边行程（三）</title>
+      <link>https://lvxi0605.github.io/posts/trip/seaside-weekend-3</link>
+      <guid isPermaLink="true">https://lvxi0605.github.io/posts/trip/seaside-weekend-3</guid>
+      <pubDate>Thu, 12 Nov 2026 00:00:00 GMT</pubDate>
+      <description>有些事不记下来，过阵子就忘了当时的感受，只剩下干巴巴的结论，所以还是趁热记一下。</description>
+      <content:encoded>&lt;p&gt;有些事不记下来，过阵子就忘了当时的感受，只剩下干巴巴的结论，所以还是趁热记一下。&lt;/p&gt;
+&lt;!--more--&gt;
+&lt;h2&gt;行程怎么安排&lt;/h2&gt;
+&lt;p&gt;两天一晚的海边短途游，行程安排的经验值：第一天下午到，先去酒店放行李再出门，日落前一小时的滩涂光线最美；晚餐吃本地的海鲜大排档，点菜原则是只点当天的鲜货，问老板今天什么好就吃什么；第二天早起看日出，中午退房前再在沙滩上耗一会儿，下午返程。&lt;/p&gt;
+&lt;p&gt;这个节奏松紧合适，既不赶也不至于无聊。海边的行程千万别排满，看海这件事本身就该占据主要时间，发呆是正经事。&lt;/p&gt;
+&lt;h2&gt;装备与花销&lt;/h2&gt;
+&lt;p&gt;装备清单值得一记：防晒是刚需，海边的紫外线反射强度比市区狠得多；拖鞋泳衣速干巾；驱蚊液看季节。花销大头其实不是吃住是时间，两天时间成本换来的放松效果远超两倍的一日游。回程车上翻照片，夕阳把每个人的轮廓都描了金边，这种照片不需要修图。海边回来后的那周，睡眠质量都好了不少，这大概是最实在的疗效。下一次短途已经预定，去山里泡温泉，秋冬的保留节目。&lt;/p&gt;
+&lt;h2&gt;过程中的小心得&lt;/h2&gt;
+&lt;p&gt;健身房年卡办完去了一次半，钱花得毫无水花。后来改成按次买，反而每周都去。消费习惯这件事，沉没成本越高越不想动，适合别人的不一定适合自己。&lt;/p&gt;
+&lt;p&gt;加湿器开一整夜，窗台上全是水汽，墙角都有点返潮。买了个湿度计才知道，舒服的湿度是个区间，不是越大越好，很多事都是这个道理。&lt;/p&gt;
+&lt;p&gt;桌面充电线缠成一团，剪也剪不开理也理不清。十块钱的理线器加几个标签贴，一次到位。这种小钱花出去，回报率出奇地高。&lt;/p&gt;
+&lt;h2&gt;延伸几句&lt;/h2&gt;
+&lt;p&gt;旅行花销里性价比最低的往往是“便利”：景区门口的餐饮、酒店楼下的纪念品、临时起意的打车。提前做一小时功课，同样的预算体验能差出一倍，省下的钱够再出发一次。&lt;/p&gt;
+&lt;p&gt;出行这些年攒下来的一条核心经验：行程安排的松紧度决定旅行质量。把每天塞满的行程，回来记住的只有赶路；留白半天随便走走，反而最容易撞见计划外的惊喜。旅行是去生活的，不是去打卡的。&lt;/p&gt;
+&lt;p&gt;短途游其实被低估了。两天一晚的去处，交通时间短、准备成本低、恢复期短，一年能来七八次。相比之下一年一次的长途旅行，准备工作量和身心消耗都大，反而更容易在期待中变形。&lt;/p&gt;
+&lt;p&gt;旅行花销里性价比最低的往往是“便利”：景区门口的餐饮、酒店楼下的纪念品、临时起意的打车。提前做一小时功课，同样的预算体验能差出一倍，省下的钱够再出发一次。&lt;/p&gt;
+&lt;p&gt;出行这些年攒下来的一条核心经验：行程安排的松紧度决定旅行质量。把每天塞满的行程，回来记住的只有赶路；留白半天随便走走，反而最容易撞见计划外的惊喜。旅行是去生活的，不是去打卡的。&lt;/p&gt;
+&lt;h2&gt;又想到一些&lt;/h2&gt;
+&lt;p&gt;其实回看这些年踩的坑，大坑几乎都和贪快有关。快不是错，错的是想跳过必要步骤的快，地基没打牢盖得越快塌得越响。慢下来把该做的做扎实，反而是最快的路径，这话说了很多年，每次验证都对。&lt;/p&gt;
+&lt;p&gt;有个观察分享给大家：技术的成长曲线不是线性的，是一段平台加一次跃迁。平台期最磨人，感觉学了很多没进步，其实是在攒素材，攒够了某个契机一到就突飞猛进。所以在平台期别否定自己，那是跃迁的前奏。&lt;/p&gt;
+&lt;p&gt;再补充一个角度：做这些事情的时候，工具的顺滑度影响巨大。同样的活，称手的工具能让摩擦力小一半，这种差异日积月累就是人和人的差距。定期审视自己的工具链，删掉碍事的，补上趁手的，值得当成一个固定动作。&lt;/p&gt;
+&lt;p&gt;由这件事联想到阅读习惯：资料要看一手来源，译文和二手转述经常带着传播者的理解偏差，偏差叠几层之后和原意面目全非。多花十分钟读原文，省下的是未来几小时的排查，这笔账怎么算都划算。&lt;/p&gt;
+&lt;h2&gt;小结&lt;/h2&gt;
+&lt;p&gt;我把这件事当成一个小需求来管理，明确了目标和验收标准，中途改了两次方案，最后的效果自己挺满意。&lt;/p&gt;
+&lt;p&gt;以上，一点心得，有说得不对的欢迎指正。&lt;/p&gt;</content:encoded>
+    </item>
+    <item>
+      <title>当 CodeBuddy 报 &quot;certificate has expired&quot;：一次 TLS 证书链误判的完整排查</title>
+      <link>https://lvxi0605.github.io/posts/ai/codebuddy-cert-expired</link>
+      <guid isPermaLink="true">https://lvxi0605.github.io/posts/ai/codebuddy-cert-expired</guid>
+      <pubDate>Wed, 11 Nov 2026 00:00:00 GMT</pubDate>
+      <description>CodeBuddy 里给自定义模型配了个第三方兼容端点 https://subapi.aitokensup.top/v1，用了一段时间突然报错：Cannot connect to API: certificate has expired，模…</description>
+      <content:encoded>&lt;p&gt;CodeBuddy 里给自定义模型配了个第三方兼容端点 &lt;code&gt;https://subapi.aitokensup.top/v1&lt;/code&gt;，用了一段时间突然报错：&lt;code&gt;Cannot connect to API: certificate has expired&lt;/code&gt;，模型直接不能用了。报错字面上说&quot;证书过期&quot;，但直觉上不对——这个域名我之前连得好好的，而且浏览器、curl 都正常。这篇记录我是怎么一步步把它查清楚、并最终从根上解决的。&lt;/p&gt;
+&lt;!--more--&gt;
+&lt;h2&gt;一、先说结论，省得你往下翻&lt;/h2&gt;
+&lt;p&gt;根因不是你的服务器证书过期，也不是 &lt;code&gt;subapi&lt;/code&gt; 有问题。而是 &lt;strong&gt;CodeBuddy 的&quot;企业 CA 信任&quot;特性，把 Windows 系统根证书库（里面混着 159 张已过期证书）当成了信任锚，OpenSSL 在构建证书链时选中了其中一张过期的 &lt;code&gt;ISRG Root X2&lt;/code&gt;，于是整条 Let&apos;s Encrypt 链被误判成&quot;过期&quot;&lt;/strong&gt;。&lt;/p&gt;
+&lt;p&gt;最终我做了两件事：&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;设了 &lt;code&gt;CODEBUDDY_TRUST_ENTERPRISE_CA=0&lt;/code&gt;，让 CodeBuddy 退回使用 Node 自带的根库（保持校验开启，且只影响 CodeBuddy）；&lt;/li&gt;
+&lt;li&gt;顺手把 Windows 系统根库里全部过期证书清掉（549 → 390 张，过期数 159 → 0），从根上消除隐患。&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;下面是正经的排查过程。&lt;/p&gt;
+&lt;h2&gt;二、两个&quot;直觉解法&quot;为什么都不太行&lt;/h2&gt;
+&lt;p&gt;遇到问题第一反应通常是两招：&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;招式 A：加根证书。&lt;/strong&gt; 在启动器里注入 &lt;code&gt;NODE_EXTRA_CA_CERTS=某cacert.pem&lt;/code&gt;，意思是&quot;把可信根补上&quot;。这招只对&quot;证书不受信任 / 缺根&quot;有效；对&quot;证书真的过期&quot;无效——过期是时间问题，不是信任问题，补根救不了。&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;招式 B：关掉校验。&lt;/strong&gt; 设 &lt;code&gt;NODE_TLS_REJECT_UNAUTHORIZED=0&lt;/code&gt;，意思是&quot;TLS 出错也别拦我&quot;。这招确实能绕过，但它是&lt;strong&gt;全局生效&lt;/strong&gt;的：你机器上所有 Node 进程从此都不校验证书了，等于把自家门锁拆了防贼。能用，但不体面，也不安全。&lt;/p&gt;
+&lt;p&gt;我当时先用 B 跑通了，验证&quot;确实是 TLS 这一层在拦&quot;，但立刻想换掉它——全局关校验太糙了。&lt;/p&gt;
+&lt;h2&gt;三、先排除服务端：subapi 的证书其实没问题&lt;/h2&gt;
+&lt;p&gt;用多种方式直连 &lt;code&gt;subapi.aitokensup.top&lt;/code&gt; 做严格 TLS 校验，全部通过：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Node &lt;code&gt;tls.connect&lt;/code&gt; 带 SNI、严格校验：链完整，&lt;code&gt;authorized=true&lt;/code&gt;；&lt;/li&gt;
+&lt;li&gt;Windows 自带的 &lt;code&gt;curl.exe&lt;/code&gt;（走系统 schannel）：握手成功，接口还能返回 &lt;code&gt;401&lt;/code&gt;（说明域名、服务、证书链都正常，只是没带 token）。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;所以服务端的证书是有效的。那 CodeBuddy 看到的&quot;过期&quot;只能是&lt;strong&gt;它自己连接路径上、或者它使用的 CA 库&lt;/strong&gt;出了问题。&lt;/p&gt;
+&lt;h2&gt;四、看 CodeBuddy 自己到底连了谁&lt;/h2&gt;
+&lt;p&gt;用 &lt;code&gt;netstat&lt;/code&gt; 在发请求时抓了一下 CodeBuddy 的 443 连接，连到了几个端点：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;38.175.200.173&lt;/code&gt; —— 这就是 &lt;code&gt;subapi.aitokensup.top&lt;/code&gt;；&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;117.163.59.175&lt;/code&gt; / &lt;code&gt;117.163.58.53&lt;/code&gt; —— 腾讯云 myqcloud CDN，是 CodeBuddy 自己的后端网关（内置模型走 &lt;code&gt;copilot.tencent.com&lt;/code&gt;，证书是 DigiCert、到 2026-12 才过期，一直正常）。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;读 CodeBuddy 的扩展日志也印证了：内置模型请求发往 &lt;code&gt;copilot.tencent.com&lt;/code&gt;，而我的&lt;strong&gt;自定义模型&lt;/strong&gt;因为 &lt;code&gt;directConnect: true&lt;/code&gt;，请求直连 &lt;code&gt;subapi&lt;/code&gt;。报错恰好发生在自定义模型这一步。&lt;/p&gt;
+&lt;p&gt;注意：握手失败的那个连接不会出现在 &lt;code&gt;ESTABLISHED&lt;/code&gt; 列表里，所以光看已建立的连接找不到真凶，得去读扩展源码看它怎么建连接的。&lt;/p&gt;
+&lt;h2&gt;五、用 CodeBuddy 自己的 Node 复现&lt;/h2&gt;
+&lt;p&gt;关键一步：CodeBuddy 是 Electron 套壳，它的主进程&lt;strong&gt;本身就是个 Node&lt;/strong&gt;。用 &lt;code&gt;ELECTRON_RUN_AS_NODE=1&lt;/code&gt; 把它当普通 Node 跑，就能用**和它完全一致的运行时（同版本、同 OpenSSL、同 CA 加载逻辑）**去复现：&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-bat&quot;&gt;@echo off
+set &quot;ELECTRON_RUN_AS_NODE=1&quot;
+&quot;D:\Compiler\CodeBuddy CN\CodeBuddy CN.exe&quot; your-script.cjs
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;拿它去连 &lt;code&gt;subapi&lt;/code&gt;，结果和我的系统 Node 一样：&lt;code&gt;authorized=true&lt;/code&gt;。说明裸 TLS 没问题，问题出在&lt;strong&gt;扩展发起请求时用的那条连接配置&lt;/strong&gt;。&lt;/p&gt;
+&lt;h2&gt;六、根因：被系统根库里的过期证书&quot;误伤&quot;&lt;/h2&gt;
+&lt;p&gt;顺着扩展源码一路摸到建连逻辑，核心在这里（伪代码）：&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-js&quot;&gt;buildDirectAgentOptions(...) {
+  if (this.options.trustEnterpriseRootCa &amp;#x26;&amp;#x26; !disableTls) {
+    opts.ca = this.getTrustedCertificates();   // 用自定义 CA 列表替换默认根
+    opts.rejectUnauthorized = true;
+  }
+  return { autoSelectFamily: true, connect: opts };
+}
+
+// getTrustedCertificates 内部
+resolveTrustedCertificates() {
+  return require(&apos;tls&apos;).getCACertificates(&apos;system&apos;);  // 取 Windows 系统根库
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;也就是说，当开启&quot;企业 CA 信任&quot;时，CodeBuddy 会用 &lt;code&gt;tls.getCACertificates(&apos;system&apos;)&lt;/code&gt;——&lt;strong&gt;Windows 系统根证书库&lt;/strong&gt;——作为信任锚，&lt;strong&gt;完全替换掉&lt;/strong&gt; Node 自带的根库。一旦你显式传了 &lt;code&gt;ca&lt;/code&gt;，Node 就只信这一份，连 &lt;code&gt;NODE_EXTRA_CA_CERTS&lt;/code&gt; 都会被忽略（这也解释了为什么前面加根证书那招没用）。&lt;/p&gt;
+&lt;p&gt;我把这两项放在一起对照，根因立刻显形：&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-text&quot;&gt;默认根库                       → OK authorized=true
+系统根库(549 张)              → FAIL CERT_HAS_EXPIRED
+系统根库(剔除过期后 390 张)   → OK authorized=true
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;系统根库一共有 &lt;strong&gt;549 张&lt;/strong&gt;，其中 &lt;strong&gt;159 张已经过期&lt;/strong&gt;，里面就包括证书链路上的一张 &lt;strong&gt;&lt;code&gt;ISRG Root X2&lt;/code&gt;（有效期至 2025-09-15，早已过期）&lt;/strong&gt;。OpenSSL 构建 &lt;code&gt;subapi&lt;/code&gt; 的 Let&apos;s Encrypt 链时，正好选中了这张过期的根作为锚点，于是整条链被判 &lt;code&gt;CERT_HAS_EXPIRED&lt;/code&gt;。&lt;/p&gt;
+&lt;p&gt;这其实是 CodeBuddy 的一个实现缺陷：&lt;strong&gt;把系统根库整个当 CA 用时，没有先过滤掉过期证书&lt;/strong&gt;。系统根库里混进过期根很常见（各种旧根、自签根长期不清理），正常情况下 Windows/OpenSSL 会自动忽略，但当它被单独拎出来当&quot;唯一信任源&quot;时，过期根就成了雷。&lt;/p&gt;
+&lt;h2&gt;七、三种修复方式，从治标到根治&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;方式一（推荐，治标且安全）：关掉&quot;企业 CA 信任&quot;开关&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;CodeBuddy 认一个专用环境变量，只影响它自己，不污染其他程序：&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-bat&quot;&gt;set &quot;CODEBUDDY_TRUST_ENTERPRISE_CA=0&quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;设成用户级环境变量后，任何方式启动都会继承。效果是让 CodeBuddy 退回使用 Node 自带的根库——我们已经验证过那份根库能正常校验 &lt;code&gt;subapi&lt;/code&gt;，&lt;strong&gt;全程 TLS 校验保持开启&lt;/strong&gt;。这是我个人首选的修法：不动系统、不降安全、只改 CodeBuddy 的行为。&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;方式二（根治）：清理系统根库里的过期证书&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;既然雷在系统根库，那就把过期的清掉。用 PowerShell 遍历本机/当前用户的 Root 与 CA 存储，删掉 &lt;code&gt;NotAfter&lt;/code&gt; 早于现在的证书（需要管理员权限）：&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-powershell&quot;&gt;$now = Get-Date
+foreach ($st in &apos;Cert:\LocalMachine\Root&apos;,&apos;Cert:\LocalMachine\CA&apos;,&apos;Cert:\CurrentUser\Root&apos;,&apos;Cert:\CurrentUser\CA&apos;) {
+  Get-ChildItem $st -ErrorAction SilentlyContinue |
+    Where-Object { $_.NotAfter -lt $now } |
+    ForEach-Object { Remove-Item &quot;$st\$($_.Thumbprint)&quot; -Force -ErrorAction SilentlyContinue }
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;清完后系统根库从 549 张降到 390 张，过期数 &lt;code&gt;159 → 0&lt;/code&gt;。此时哪怕重新打开&quot;企业 CA 信任&quot;，&lt;code&gt;subapi&lt;/code&gt; 也能正常通过。删的都是已过期证书，不含任何有效证书，对系统和其它程序是安全的。&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;方式三（不推荐）：全局关校验&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;NODE_TLS_REJECT_UNAUTHORIZED=0&lt;/code&gt; 能绕过，但会让本机所有 Node 进程都不校验证书，属于&quot;为了修水管把楼拆了&quot;。除非临时验证，不建议长期留着。&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;小提示：如果你之前为了应急设过这个变量，清完系统根库后记得把它删掉。&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h2&gt;八、复盘：这类&quot;证书过期&quot;怎么快速定位&lt;/h2&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;先分清&quot;不信任&quot;还是&quot;过期&quot;&lt;/strong&gt;：&lt;code&gt;NODE_EXTRA_CA_CERTS&lt;/code&gt; 只对前者有效，后者只能跳过校验或换 CA 源。两者排查方向完全不同。&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;别只信报错文案&lt;/strong&gt;：&lt;code&gt;certificate has expired&lt;/code&gt; 未必是服务端证书真过期。先拿 &lt;code&gt;curl&lt;/code&gt;/Node 严格 TLS 直连服务端验证——本例里服务端完全正常。&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;用应用自己的运行时复现&lt;/strong&gt;：Electron 套壳工具设 &lt;code&gt;ELECTRON_RUN_AS_NODE=1&lt;/code&gt; 就能当 Node 用，拿到和它一致的 TLS 行为，避免&quot;我本地明明能连&quot;的错觉。&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;去读源码里 CA 的来源&lt;/strong&gt;：很多客户端会&quot;好心&quot;地用系统/自定义 CA 库替换默认根库，这往往是幽灵报错的来源。找到 &lt;code&gt;ca&lt;/code&gt;/&lt;code&gt;getCACertificates&lt;/code&gt;/&lt;code&gt;rejectUnauthorized&lt;/code&gt; 这些点，问题就透明了。&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h2&gt;结语&lt;/h2&gt;
+&lt;p&gt;这次最深的体会是：现代运行时的&quot;证书过期&quot;报错，常常不是证书本身的问题，而是&lt;strong&gt;信任链组装&lt;/strong&gt;的问题——一张过期根静静躺在系统库里，平时无人问津，一旦被某个客户端当成唯一信任源，就引爆整条链。排查的捷径永远不是&quot;先关校验&quot;，而是搞清楚&quot;到底连的是谁、信的是哪份根&quot;。&lt;/p&gt;
+&lt;p&gt;清完系统根库的那个晚上，模型重新跑起来的时候，顺手把积压的 159 张过期根也一并扫了——系统干净了，睡觉也踏实。&lt;/p&gt;</content:encoded>
+    </item>
+    <item>
+      <title>深分页问题的几种解法（二）</title>
+      <link>https://lvxi0605.github.io/posts/db/deep-pagination-2</link>
+      <guid isPermaLink="true">https://lvxi0605.github.io/posts/db/deep-pagination-2</guid>
+      <pubDate>Wed, 11 Nov 2026 00:00:00 GMT</pubDate>
+      <description>周五晚上泡了杯茶，把这阵子零散的笔记归拢成这一篇，也算是给这周收个尾。</description>
+      <content:encoded>&lt;p&gt;周五晚上泡了杯茶，把这阵子零散的笔记归拢成这一篇，也算是给这周收个尾。&lt;/p&gt;
+&lt;!--more--&gt;
+&lt;h2&gt;为什么会慢&lt;/h2&gt;
+&lt;p&gt;limit 100000, 20 这类查询慢的原因不复杂：数据库要真正取出前 100020 条，再丢掉前十万条。走二级索引时还伴随十万次回表，这些操作都是实打实的 IO。页数越深越慢，翻到后面就像在沙滩上数沙子。&lt;/p&gt;
+&lt;p&gt;第一种解法是游标分页：记住上一页最后一条的排序键，下一页改成 where sort_key &gt; last_value limit 20，配合索引就是精准定位，性能和页码无关。缺点是只能连续翻页不能跳页，但绝大多数真实场景根本没人跳到第 5000 页。&lt;/p&gt;
+&lt;h2&gt;不能改交互怎么办&lt;/h2&gt;
+&lt;p&gt;交互上必须支持跳页的场景，也有变通：延迟关联，先用覆盖索引把目标页的主键捞出来，再回表取整行，回表次数从十万降到二十；或者把列表数据冗余到搜索引擎，翻页压力交给专门的检索层。我的建议是和产品聊聊真实的翻页深度，十次里有九次可以放心改成游标方案，剩下一次再上重方案。&lt;/p&gt;
+&lt;h2&gt;顺手记两个坑&lt;/h2&gt;
+&lt;p&gt;HTTPS 证书配完，桌面浏览器都正常，部分安卓机型握手失败。是证书链不完整，中间证书没部署。证书工具会提示，但前提是你出问题之前主动去验证一次。&lt;/p&gt;
+&lt;p&gt;接手老代码，方法级 synchronized 把远程调用也包了进去，整个接口的吞吐被锁死。缩小锁范围只保护共享变量，性能立刻回来。锁的粒度，永远值得多看一眼。&lt;/p&gt;
+&lt;p&gt;jstat 看 GC 一切正常，但接口就是偶发抖动，最后发现宿主机在用 swap。禁掉 swap 加上内存预留，抖动消失。应用层之外，操作系统层面的问题也要纳入视野。&lt;/p&gt;
+&lt;h2&gt;一点延伸&lt;/h2&gt;
+&lt;p&gt;数据量增长是所有方案失效的终极原因。现在跑得好好的查询，数据翻十倍之后可能完全是另一副面孔。容量规划不是运维一个人的事，写代码的时候对表的增长速度心里有数，才能提前留出退路。&lt;/p&gt;
+&lt;p&gt;备份和演练是数据库运维的两条底线。备份没验证过可恢复，等于心理安慰；恢复流程没演练过，真出事时的时间压力会放大所有操作失误。这两件事建议按季度固定做，形成肌肉记忆。&lt;/p&gt;
+&lt;p&gt;数据库问题的通用排查思路值得单独记一笔：先看监控确认是慢查询、锁等待还是资源瓶颈，再看执行计划和锁日志定位到具体语句，最后才考虑改索引或改写法。顺序反了容易在错误的方向上耗掉一晚上。&lt;/p&gt;
+&lt;p&gt;索引设计说到底是在读写之间做权衡，每加一个索引，写入成本就涨一分。我的习惯是定期审计索引的实际使用情况，把长期没被命中的索引下掉，这个动作在写入量大的表上收益立竿见影。&lt;/p&gt;
+&lt;p&gt;数据量增长是所有方案失效的终极原因。现在跑得好好的查询，数据翻十倍之后可能完全是另一副面孔。容量规划不是运维一个人的事，写代码的时候对表的增长速度心里有数，才能提前留出退路。&lt;/p&gt;
+&lt;h2&gt;再补充几句&lt;/h2&gt;
+&lt;p&gt;顺带聊聊方法论：遇到不熟悉的领域，我的习惯是先把最小闭环跑通，哪怕每一步都很粗糙。跑通之后再逐段替换成正经实现，过程中每一步都有可运行的版本。这个思路在工作和生活里都屡试不爽，比憋大招的成功率高得多。&lt;/p&gt;
+&lt;p&gt;另外觉得这件事里有个普遍适用的规律：复杂度不会消失，只会转移。你省掉的每一步设计，最后都会在排查、扩容或者交接的某个时刻加倍还回来。所谓好的方案，不过是把复杂度放到了值得的位置。&lt;/p&gt;
+&lt;p&gt;回顾这个过程，最大的教训其实是克制。可选项永远比需要的多，每个新方案看起来都比现状好一点，但都加上之后，系统就成了没人看得懂的拼贴画。做减法的判断比做加法的胆子更值钱。&lt;/p&gt;
+&lt;p&gt;这种事急不来，和锻炼身体是一个道理：练一天没变化，练三个月身体自己会说话。技术积累也是这样，每天一点，回过头看的时候差距已经拉开了，只是身在其中感觉不到而已。&lt;/p&gt;
+&lt;h2&gt;写在最后&lt;/h2&gt;
+&lt;p&gt;上午改代码，下午陪家人逛了趟超市，晚上坐下来写这篇，一天过得挺满。&lt;/p&gt;
+&lt;p&gt;先记到这里，后面有新的进展再来补充。&lt;/p&gt;</content:encoded>
+    </item>
+    <item>
+      <title>内存淘汰策略与碎片整理（五）</title>
+      <link>https://lvxi0605.github.io/posts/redis/redis-eviction-5</link>
+      <guid isPermaLink="true">https://lvxi0605.github.io/posts/redis/redis-eviction-5</guid>
+      <pubDate>Wed, 11 Nov 2026 00:00:00 GMT</pubDate>
+      <description>最近被问了几次同一个问题，发现口头表达总是漏要点，干脆写成文，以后直接甩链接。</description>
+      <content:encoded>&lt;p&gt;最近被问了几次同一个问题，发现口头表达总是漏要点，干脆写成文，以后直接甩链接。&lt;/p&gt;
+&lt;!--more--&gt;
+&lt;h2&gt;策略怎么选&lt;/h2&gt;
+&lt;p&gt;内存满了之后的淘汰策略有八种，核心区别是淘汰范围：只淘汰带过期时间的键，还是在全部键里淘汰；算法上有近似 LRU、LFU、随机和按 TTL。纯缓存场景大多数团队用 allkeys-lru 或 allkeys-lfu，热点数据留存效果好；如果 Redis 里混存了不能丢的数据，千万别选 allkeys 系列，否则内存一满连业务数据都被清了。&lt;/p&gt;
+&lt;p&gt;LFU 适合访问频率差异大的场景，LRU 偶尔的批量扫描会把真正的热点挤出去，两种算法没有绝对优劣，看访问模式选。&lt;/p&gt;
+&lt;h2&gt;碎片与水位&lt;/h2&gt;
+&lt;p&gt;除了淘汰，还有两个运维关注点：内存碎片率长期高于 1.5 说明写入删除模式比较碎，考虑开启主动碎片整理；maxmemory 要留出复制缓冲区和其他开销的余量，不能拍着物理内存顶配。我的习惯是给每个 Redis 实例画两条线，水位 70% 预警 85% 处置，配合容量规划按季度过一遍增长曲线，内存问题基本都能在爆掉之前安排好。&lt;/p&gt;
+&lt;h2&gt;记两个小问题&lt;/h2&gt;
+&lt;p&gt;接口偶发超时，压测环境复现不了，后来发现是连接池的 maxPoolSize 用了默认值，高峰期全在等连接。调大之后看监控，等待队列直接归零，这种参数还是得按自己的流量压一遍。&lt;/p&gt;
+&lt;p&gt;镜像优化前是 1.2G，换 alpine 基础镜像加上多阶段构建，砍到两百兆以内，拉取时间肉眼可见地降下来。构建上下文里别把无关文件拷进去，.dockerignore 值得认真配一次。&lt;/p&gt;
+&lt;p&gt;上传接口一直 413，代码怎么改都没用，最后才反应过来是 Nginx 的 client_max_body_size 默认 1m 挡住了。这种不在应用层的问题，排查方向一开始就该往链路上想。&lt;/p&gt;
+&lt;h2&gt;顺便一提&lt;/h2&gt;
+&lt;p&gt;Redis 的很多事故复盘下来都是“没想到会用成这样”：没想到一个 key 会涨到几百兆，没想到一个 hash 会有千万级字段。所以架构评审时对 Redis 的使用多做一句灵魂拷问：这个结构的规模上限是多少，通常能省掉未来很多夜晚。&lt;/p&gt;
+&lt;p&gt;用 Redis 的这些年的一个整体感受：它把复杂性从性能转移到了运维。单线程模型保证了简单和快，但内存水位、大 key、热点 key 这些问题都需要自己盯。用好它的关键不是多学几个命令，是建立起一套日常巡检的习惯。&lt;/p&gt;
+&lt;p&gt;缓存和数据库的一致性是个永恒话题，没有银弹，只有按业务容忍度选方案。先问自己：不一致的窗口期多大可以接受？答案决定了用失效、用双删还是用订阅 binlog 的异步更新，很多争论其实是没先对齐这个前提。&lt;/p&gt;
+&lt;p&gt;Redis 的很多事故复盘下来都是“没想到会用成这样”：没想到一个 key 会涨到几百兆，没想到一个 hash 会有千万级字段。所以架构评审时对 Redis 的使用多做一句灵魂拷问：这个结构的规模上限是多少，通常能省掉未来很多夜晚。&lt;/p&gt;
+&lt;p&gt;用 Redis 的这些年的一个整体感受：它把复杂性从性能转移到了运维。单线程模型保证了简单和快，但内存水位、大 key、热点 key 这些问题都需要自己盯。用好它的关键不是多学几个命令，是建立起一套日常巡检的习惯。&lt;/p&gt;
+&lt;h2&gt;另外记几笔&lt;/h2&gt;
+&lt;p&gt;由这件事联想到阅读习惯：资料要看一手来源，译文和二手转述经常带着传播者的理解偏差，偏差叠几层之后和原意面目全非。多花十分钟读原文，省下的是未来几小时的排查，这笔账怎么算都划算。&lt;/p&gt;
+&lt;p&gt;还有个感受越来越深：知识落地成文字的过程本身就是学习的一部分。很多自以为想清楚的东西，写出来才发现逻辑有洞。写作是最好的检验，这也是坚持写博客这么多年的理由之一，写不出来的就是还没学会的。&lt;/p&gt;
+&lt;p&gt;过程中也反复体会到取舍的本质：没有完美的方案，只有当下约束下最合适的方案。把约束写清楚，方案的选择题就变成了证明题，这也是为什么我习惯先列约束再谈方案，顺序反了全是无效争论。&lt;/p&gt;
+&lt;p&gt;想想还是补一段：任何习惯的养成都绕不开启动成本，最有效的办法是把启动成本降到接近零。想跑就把鞋放门口，想写就把文档开着置顶，环境准备到位了，行动只是顺水推舟。&lt;/p&gt;
+&lt;h2&gt;写在最后&lt;/h2&gt;
+&lt;p&gt;泡的茶忘了喝，回过神已经凉透了，进入状态的时候对时间的感知就剩这点不好。&lt;/p&gt;
+&lt;p&gt;这篇就先这样，想到了什么再回来补。&lt;/p&gt;</content:encoded>
+    </item>
+    <item>
+      <title>主从延迟的那些原因与对策（三）</title>
+      <link>https://lvxi0605.github.io/posts/db/replica-lag-3</link>
+      <guid isPermaLink="true">https://lvxi0605.github.io/posts/db/replica-lag-3</guid>
+      <pubDate>Mon, 09 Nov 2026 00:00:00 GMT</pubDate>
+      <description>周五晚上泡了杯茶，把这阵子零散的笔记归拢成这一篇，也算是给这周收个尾。</description>
+      <content:encoded>&lt;p&gt;周五晚上泡了杯茶，把这阵子零散的笔记归拢成这一篇，也算是给这周收个尾。&lt;/p&gt;
+&lt;!--more--&gt;
+&lt;h2&gt;延迟从哪来&lt;/h2&gt;
+&lt;p&gt;主从延迟的表现是写完主库立刻读从库，读到的还是旧数据。原因通常几类：从库单线程回放（高版本有并行复制但默认配置未必开启）、大事务在主库执行了几分钟从库就要回放几分钟、从库机器规格太低、还有表没有主键导致回放全表扫描。&lt;/p&gt;
+&lt;p&gt;业务上还有个常见的放大器：写完立刻读的强一致读场景，本该走主库却被路由到了从库。这类读并不多，但它们一出现就是必现的不一致，用户感知极强。&lt;/p&gt;
+&lt;h2&gt;对策清单&lt;/h2&gt;
+&lt;p&gt;对策清单：开启并行复制并调整 worker 数；大事务拆小，批量更新分批提交；确认所有表都有主键；对强一致读的业务代码里显式指定走主库，或者用读自己的写那套方案；监控上把延迟秒数做成告警而不是等用户反馈。延迟不会消失，只能被压到业务无感的程度，把哪些读可以容忍延迟想清楚，比盲目堆从库更有效。&lt;/p&gt;
+&lt;h2&gt;过程中的两个坑&lt;/h2&gt;
+&lt;p&gt;服务注册状态看着正常，流量却没打过来。心跳超时加上保护阈值，Nacos 短暂摘除了实例。注册中心的状态和真实可用性是两回事，健康检查永远要结合业务探活来看。&lt;/p&gt;
+&lt;p&gt;ES 深分页直接报错，from 加 size 超了上限。改用 search_after 滚动查询，性能稳定得多。分页这个需求，产品经理以为是免费的，实际上是数据库在替他扛。&lt;/p&gt;
+&lt;p&gt;导出报表把服务打 OOM，一次性查全量再一次性写 Excel。改成游标分批查加流式写，内存稳稳的。任何全量操作，都值得先问一句：数据量多大，以后还会更大吗。&lt;/p&gt;
+&lt;h2&gt;延伸几句&lt;/h2&gt;
+&lt;p&gt;数据量增长是所有方案失效的终极原因。现在跑得好好的查询，数据翻十倍之后可能完全是另一副面孔。容量规划不是运维一个人的事，写代码的时候对表的增长速度心里有数，才能提前留出退路。&lt;/p&gt;
+&lt;p&gt;备份和演练是数据库运维的两条底线。备份没验证过可恢复，等于心理安慰；恢复流程没演练过，真出事时的时间压力会放大所有操作失误。这两件事建议按季度固定做，形成肌肉记忆。&lt;/p&gt;
+&lt;p&gt;数据库问题的通用排查思路值得单独记一笔：先看监控确认是慢查询、锁等待还是资源瓶颈，再看执行计划和锁日志定位到具体语句，最后才考虑改索引或改写法。顺序反了容易在错误的方向上耗掉一晚上。&lt;/p&gt;
+&lt;p&gt;索引设计说到底是在读写之间做权衡，每加一个索引，写入成本就涨一分。我的习惯是定期审计索引的实际使用情况，把长期没被命中的索引下掉，这个动作在写入量大的表上收益立竿见影。&lt;/p&gt;
+&lt;p&gt;数据量增长是所有方案失效的终极原因。现在跑得好好的查询，数据翻十倍之后可能完全是另一副面孔。容量规划不是运维一个人的事，写代码的时候对表的增长速度心里有数，才能提前留出退路。&lt;/p&gt;
+&lt;h2&gt;又想到一些&lt;/h2&gt;
+&lt;p&gt;最后聊点感受：做技术这些年，越来越觉得最好的状态是既投入又抽离。投入是把事情做好，抽离是时不时跳出来看看方向对不对，两者缺一，要么辛苦没产出，要么轻松跑偏路。&lt;/p&gt;
+&lt;p&gt;写着写着想到，很多技术选择本质上都是在回答同一个问题：这个方案在出问题的时候是什么样子。不出问题的方案人人都写得出来，区分度全在故障时刻的表现。多想一层失败路径，很多纠结就自动有了答案。&lt;/p&gt;
+&lt;p&gt;这类经验在文档里通常只有一行字，背后的排查却是一整个下午。技术工作的大部分时间都花在这些不会写进简历的细节里，所以这些细节才更需要有人写出来，哪怕只是给未来某一天忘了的自己。&lt;/p&gt;
+&lt;p&gt;顺带聊聊方法论：遇到不熟悉的领域，我的习惯是先把最小闭环跑通，哪怕每一步都很粗糙。跑通之后再逐段替换成正经实现，过程中每一步都有可运行的版本。这个思路在工作和生活里都屡试不爽，比憋大招的成功率高得多。&lt;/p&gt;
+&lt;h2&gt;小结&lt;/h2&gt;
+&lt;p&gt;写完这篇下楼跑了个五公里，脑子里剩下的方案细节，居然是跑步的时候理顺的。&lt;/p&gt;
+&lt;p&gt;这篇就写到这，希望对你有点参考价值。&lt;/p&gt;</content:encoded>
+    </item>
+    <item>
+      <title>台风天居家记（二）</title>
+      <link>https://lvxi0605.github.io/posts/life/rainy-day-2</link>
+      <guid isPermaLink="true">https://lvxi0605.github.io/posts/life/rainy-day-2</guid>
+      <pubDate>Sun, 08 Nov 2026 00:00:00 GMT</pubDate>
+      <description>周末闲下来，想把这件事记一笔，没什么技术含量，就是觉得有点意思，不写下来可惜。</description>
+      <content:encoded>&lt;p&gt;周末闲下来，想把这件事记一笔，没什么技术含量，就是觉得有点意思，不写下来可惜。&lt;/p&gt;
+&lt;!--more--&gt;
+&lt;h2&gt;风声里的白天&lt;/h2&gt;
+&lt;p&gt;台风预警级别升高的那天下午，单位提前放假。回家的路上风已经开始不讲道理，伞打不住，索性收了淋着走。到家第一件事是把阳台的植物全部搬进客厅，花盆挪好位置，窗户缝用胶带贴了米字，这套流程熟得让人悲哀，也熟得让人安心。&lt;/p&gt;
+&lt;p&gt;台风天的居家有个特别之处：所有事情都获得了正当的慢下来的理由。泡一壶茶看书，看两页就走神听一会儿风，也不觉得浪费。平时觉得&quot;应该去做&quot;的事情统统按下了暂停键，只剩下&quot;想做什么&quot;。&lt;/p&gt;
+&lt;h2&gt;停下来的价值&lt;/h2&gt;
+&lt;p&gt;晚上停电了两个小时，手机玩到没电，全家点着蜡烛聊了很久的天，这种对话在通电的晚上发生概率为零。风停之后第二天出门，路上断了几根树枝，环卫工人在清早已经在忙了。&lt;/p&gt;
+&lt;p&gt;这场台风让我想通一件事：强制停下来对现代人是一种稀有资源，平时靠自律根本停不下来，大自然的强制力反而帮了忙。这篇写在风停的晚上，窗外已经安静，但那种慢下来的劲儿我想多留几天。&lt;/p&gt;
+&lt;h2&gt;两个小教训&lt;/h2&gt;
+&lt;p&gt;桌面充电线缠成一团，剪也剪不开理也理不清。十块钱的理线器加几个标签贴，一次到位。这种小钱花出去，回报率出奇地高。&lt;/p&gt;
+&lt;p&gt;保温杯里闷了一晚上的茶，苦到怀疑人生。茶水分离的杯子买回来之后，每一泡都恰到好处，工具选对，体验立刻不同。&lt;/p&gt;
+&lt;p&gt;下雨天骑车上班，一个转弯摔了，人没大事，裤子毁了，手机屏幕裂了道纹。从那之后雨天一律地铁，通勤的意义是到达，不是冒险。&lt;/p&gt;
+&lt;h2&gt;一点延伸&lt;/h2&gt;
+&lt;p&gt;独居和成家各有各的修行，我现在的体会是无论哪种状态，把生活的基础盘打理好都是第一位的：睡眠、饮食、居住环境、几个说得上话的朋友。基础盘稳了，其他的变化来了都能接得住。&lt;/p&gt;
+&lt;p&gt;成年人的学习和学生时代最大的不同是反馈周期，没人给你打分，效果要几个月甚至几年后才显现。所以坚持的动力只能来自内部：记录对照、阶段复盘、给自己一点小奖励，这些机制比意志力可靠得多。&lt;/p&gt;
+&lt;p&gt;写生活记录这几年有个体会：当时觉得不值得写的小事，事后回看反而是最鲜活的片段。反而是那些酝酿很久想认真写的“大主题”，多数烂在了草稿箱。所以现在我的原则是趁热写，先记下来，好不好以后再说。&lt;/p&gt;
+&lt;p&gt;生活里很多烦恼，拆开看其实是信息问题而不是命运问题：不知道怎么挑、不知道怎么做、不知道别人是怎么解决的。而信息问题基本都能靠学习和请教解决，这么一想，很多焦虑就有了着手点。&lt;/p&gt;
+&lt;h2&gt;再补充几句&lt;/h2&gt;
+&lt;p&gt;想到一个问题：为什么同样的事情，不同的人做出来差别那么大。后来觉得答案在于对边界的处理，正常路径人人会写，边界和异常的处理习惯才是拉开差距的地方。做事和写代码一样，细节的密度决定成品的质量。&lt;/p&gt;
+&lt;p&gt;写到这里顺便吐个槽，这类事情最难的部分往往不是技术本身，是说服别人相信它值得投入。方案再好，落不到排期上都是空谈，所以学会用数据的语言讲价值，算是这些年额外的必修课。&lt;/p&gt;
+&lt;p&gt;有时候会想，学一门新技术到底学到的是什么。语法和 API 会过时，真正的收获是它看问题的角度。多一门语言就多一副眼镜，同一副牌桌，能看到别人看不到的牌路，这是这么多年折腾下来最确定的回报。&lt;/p&gt;
+&lt;p&gt;记一个产生过的动摇：做到一半觉得这玩意儿是不是没什么意义。后来想通了，意义不是事情自带的，是你把它做完并沉淀下来之后长出来的。烂尾的才真的没意义，做完的最差也是一篇笔记。&lt;/p&gt;
+&lt;h2&gt;小结&lt;/h2&gt;
+&lt;p&gt;这事让我想起灰度发布的思路，任何改变都别一次到位，小范围试试，没问题再推广，生活里同样适用。&lt;/p&gt;
+&lt;p&gt;大概就是这些，有不同做法欢迎评论区交流。&lt;/p&gt;</content:encoded>
+    </item>
+    <item>
+      <title>Go 的 GC 演进读后感（三）</title>
+      <link>https://lvxi0605.github.io/posts/golang/go-gc-3</link>
+      <guid isPermaLink="true">https://lvxi0605.github.io/posts/golang/go-gc-3</guid>
+      <pubDate>Wed, 04 Nov 2026 00:00:00 GMT</pubDate>
+      <description>最近被问了几次同一个问题，发现口头表达总是漏要点，干脆写成文，以后直接甩链接。</description>
+      <content:encoded>&lt;p&gt;最近被问了几次同一个问题，发现口头表达总是漏要点，干脆写成文，以后直接甩链接。&lt;/p&gt;
+&lt;!--more--&gt;
+&lt;h2&gt;一路怎么走来&lt;/h2&gt;
+&lt;p&gt;Go 的 GC 这十年的演进是个好故事：早期的 STW 以百毫秒计，1.8 之后换成三色标记加混合写屏障，STW 压到微秒级，用户基本无感。整个优化的方向很明确，不是追求吞吐极限，而是压停顿，这与它的服务端定位一致。&lt;/p&gt;
+&lt;p&gt;和 JVM 对比着看很有意思：Java 的分代假设在 Go 里被放弃了，因为逃逸分析把大量对象直接分配在栈上，堆上的对象寿命分布不再明显分代，于是 Go 选择不分代加并发标记清除，配合调整 GOGC 比例控制回收时机。同一个问题，两种语言的答案截然不同，根源在各自的工作负载。&lt;/p&gt;
+&lt;h2&gt;对写代码的影响&lt;/h2&gt;
+&lt;p&gt;写 Go 时的内存意识因此和 Java 不同：栈上分配意味着小对象很便宜，返回指针不必焦虑；sync.Pool 用于复用高频临时对象；预分配 slice 和 map 的容量能显著减少扩容拷贝。用 pprof 看分配热点，比背优化清单更有针对性。多读读两个生态的 GC 文档，对内存模型的理解会整体上一个台阶。&lt;/p&gt;
+&lt;h2&gt;记两个小问题&lt;/h2&gt;
+&lt;p&gt;多实例部署之后定时任务重复执行，同一个数据处理了两遍。加分布式锁当然可以，最后偷懒换了调度平台的分片路由，一行配置解决，前提是任务本身可以按分片拆。&lt;/p&gt;
+&lt;p&gt;遇到过消息重复消费，原因是网络抖动触发重试，业务库里多了脏数据。消费端加幂等表之后彻底解决，结论很简单：所有 MQ 的幂等都得消费端自己做，寄希望于恰好一次是不现实的。&lt;/p&gt;
+&lt;p&gt;接口偶发超时，压测环境复现不了，后来发现是连接池的 maxPoolSize 用了默认值，高峰期全在等连接。调大之后看监控，等待队列直接归零，这种参数还是得按自己的流量压一遍。&lt;/p&gt;
+&lt;h2&gt;顺便一提&lt;/h2&gt;
+&lt;p&gt;从 Java 视角看 Go，最大的观念转变是“少即是多”。没有继承、没有异常、关键字只有二十几个，初看觉得简陋，用久了才发现这种约束把代码风格统一得很好，接手别人的 Go 项目远比接手 Java 项目轻松。&lt;/p&gt;
+&lt;p&gt;Go 的工程实践里有几个值得借鉴的习惯：错误显式处理让失败路径一目了然，接口的隐式实现让依赖方向更自由，标准库的覆盖面让第三方依赖保持在很少的数量。这些设计取舍背后是同一套价值观，值得带着欣赏的眼光去体会。&lt;/p&gt;
+&lt;p&gt;学习一门新语言的最好方式还是写一个完整的小东西，哪怕很小。教程看得再多，并发竞争、错误传播、项目组织这些问题只有在真实项目里才会一个个冒出来，解决它们的过程才是真正的学习。&lt;/p&gt;
+&lt;p&gt;从 Java 视角看 Go，最大的观念转变是“少即是多”。没有继承、没有异常、关键字只有二十几个，初看觉得简陋，用久了才发现这种约束把代码风格统一得很好，接手别人的 Go 项目远比接手 Java 项目轻松。&lt;/p&gt;
+&lt;p&gt;Go 的工程实践里有几个值得借鉴的习惯：错误显式处理让失败路径一目了然，接口的隐式实现让依赖方向更自由，标准库的覆盖面让第三方依赖保持在很少的数量。这些设计取舍背后是同一套价值观，值得带着欣赏的眼光去体会。&lt;/p&gt;
+&lt;h2&gt;另外记几笔&lt;/h2&gt;
+&lt;p&gt;从更高的视角看，这类问题都有一个共同结构：短期收益和长期收益打架。短期的诱惑总是具体而生动，长期的回报抽象而遥远，赢家通常是那些把长期目标拆成短期可感的小奖励的人。&lt;/p&gt;
+&lt;p&gt;讲个题外话，做这类事情的时候最好留个记录的习惯，当时的判断依据比结果更珍贵。结果好可能只是运气好，把决策过程记下来，好运才可能被复制，坏运才可能被规避。&lt;/p&gt;
+&lt;p&gt;然后想说，承认不懂是这行的美德。这次遇到不懂的地方，老老实实补了两天的课，比硬着头皮往上糊的方案强太多。不懂装懂的代价从来不会消失，只是延期，还带利息。&lt;/p&gt;
+&lt;p&gt;平衡感很重要的一件事：投入和收益的比例。所有优化都值得先问一句，这件事的收益上限是多少，值多少投入。无限打磨一个低价值的东西是工程师最常见的温柔陷阱，包括我自己在内。&lt;/p&gt;
+&lt;h2&gt;最后&lt;/h2&gt;
+&lt;p&gt;最近加班多了些，更新慢了一点，周五晚上泡杯茶写下这篇，算是给自己留点节奏。&lt;/p&gt;
+&lt;p&gt;写完舒坦了，收工。&lt;/p&gt;</content:encoded>
+    </item>
+    <item>
+      <title>一次线上死锁的排查记录（五）</title>
+      <link>https://lvxi0605.github.io/posts/db/deadlock-check-5</link>
+      <guid isPermaLink="true">https://lvxi0605.github.io/posts/db/deadlock-check-5</guid>
+      <pubDate>Fri, 30 Oct 2026 00:00:00 GMT</pubDate>
+      <description>周五晚上泡了杯茶，把这阵子零散的笔记归拢成这一篇，也算是给这周收个尾。</description>
+      <content:encoded>&lt;p&gt;周五晚上泡了杯茶，把这阵子零散的笔记归拢成这一篇，也算是给这周收个尾。&lt;/p&gt;
+&lt;!--more--&gt;
+&lt;h2&gt;现场与现象&lt;/h2&gt;
+&lt;p&gt;那天告警群里蹦出一条死锁回滚的报错，频率不高，几分钟一条。打开 show engine innodb status，LATEST DETECTED DEADLOCK 一节把两个事务持有的锁和等待的锁列得清清楚楚：事务 A 持有某行 X 锁等待 Y，事务 B 正好相反。&lt;/p&gt;
+&lt;p&gt;顺着锁日志回到代码，两个入口分别是下单和取消订单，都会更新同一批库存行，只是更新顺序不同。经典的交叉更新死锁，教科书级别的案例，但业务代码混了几层之后就是没被发现。&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sql[deadlock.sql]&quot;&gt;-- 查看最近一次死锁详情
+SHOW ENGINE INNODB STATUS;
+
+-- 两个事务都按 id 升序更新，消除交叉
+UPDATE inventory SET qty = qty - 1
+WHERE sku_id IN (?, ?) ORDER BY sku_id;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h2&gt;解法与收敛&lt;/h2&gt;
+&lt;p&gt;解法也朴素：把两个入口里对库存行的更新顺序统一，都按商品 ID 升序排列后再逐行更新，环路不存在了死锁自然消失。另外把死锁监控加了常驻告警，这类问题单次看是偶发，久了会侵蚀可用性。总结下来的心得是：死锁日志本身信息量很足，别急着加锁重试，先读懂数据库告诉你它到底在等什么。&lt;/p&gt;
+&lt;h2&gt;踩坑记录&lt;/h2&gt;
+&lt;p&gt;数据库连接池耗尽告警，顺着栈一看，事务方法里调了个远程接口，慢的时候一占好几秒。把远程调用挪出事务，事务粒度改小，连接池立刻宽松了。事务里只做该做的事。&lt;/p&gt;
+&lt;p&gt;crontab 里的脚本手动跑正常、定时跑就报错，环境变量不一致是老坑。把依赖的环境都写进脚本头部，或者干脆用绝对路径，别指望定时任务的运行环境和你的终端一样。&lt;/p&gt;
+&lt;p&gt;单元测试月底跑挂了，因为断言里依赖系统当前日期。注入 Clock 之后再测，时间随意控制。第一次遇到这种问题觉得很玄学，理解了之后觉得这是依赖注入最生动的教学案例。&lt;/p&gt;
+&lt;h2&gt;多聊两句&lt;/h2&gt;
+&lt;p&gt;数据量增长是所有方案失效的终极原因。现在跑得好好的查询，数据翻十倍之后可能完全是另一副面孔。容量规划不是运维一个人的事，写代码的时候对表的增长速度心里有数，才能提前留出退路。&lt;/p&gt;
+&lt;p&gt;备份和演练是数据库运维的两条底线。备份没验证过可恢复，等于心理安慰；恢复流程没演练过，真出事时的时间压力会放大所有操作失误。这两件事建议按季度固定做，形成肌肉记忆。&lt;/p&gt;
+&lt;p&gt;数据库问题的通用排查思路值得单独记一笔：先看监控确认是慢查询、锁等待还是资源瓶颈，再看执行计划和锁日志定位到具体语句，最后才考虑改索引或改写法。顺序反了容易在错误的方向上耗掉一晚上。&lt;/p&gt;
+&lt;p&gt;索引设计说到底是在读写之间做权衡，每加一个索引，写入成本就涨一分。我的习惯是定期审计索引的实际使用情况，把长期没被命中的索引下掉，这个动作在写入量大的表上收益立竿见影。&lt;/p&gt;
+&lt;p&gt;数据量增长是所有方案失效的终极原因。现在跑得好好的查询，数据翻十倍之后可能完全是另一副面孔。容量规划不是运维一个人的事，写代码的时候对表的增长速度心里有数，才能提前留出退路。&lt;/p&gt;
+&lt;h2&gt;继续聊聊&lt;/h2&gt;
+&lt;p&gt;想想还是补一段：任何习惯的养成都绕不开启动成本，最有效的办法是把启动成本降到接近零。想跑就把鞋放门口，想写就把文档开着置顶，环境准备到位了，行动只是顺水推舟。&lt;/p&gt;
+&lt;p&gt;从更高的视角看，这类问题都有一个共同结构：短期收益和长期收益打架。短期的诱惑总是具体而生动，长期的回报抽象而遥远，赢家通常是那些把长期目标拆成短期可感的小奖励的人。&lt;/p&gt;
+&lt;p&gt;讲个题外话，做这类事情的时候最好留个记录的习惯，当时的判断依据比结果更珍贵。结果好可能只是运气好，把决策过程记下来，好运才可能被复制，坏运才可能被规避。&lt;/p&gt;
+&lt;p&gt;然后想说，承认不懂是这行的美德。这次遇到不懂的地方，老老实实补了两天的课，比硬着头皮往上糊的方案强太多。不懂装懂的代价从来不会消失，只是延期，还带利息。&lt;/p&gt;
+&lt;h2&gt;写在最后&lt;/h2&gt;
+&lt;p&gt;写这篇之前刚给阳台的绿萝浇了水，照顾植物和写博客有个共同点，都靠长期的小坚持。&lt;/p&gt;
+&lt;p&gt;记录完毕，方便以后自己回来翻。&lt;/p&gt;</content:encoded>
+    </item>
+    <item>
+      <title>线程池参数到底怎么定（六）</title>
+      <link>https://lvxi0605.github.io/posts/java/thread-pool-6</link>
+      <guid isPermaLink="true">https://lvxi0605.github.io/posts/java/thread-pool-6</guid>
+      <pubDate>Fri, 30 Oct 2026 00:00:00 GMT</pubDate>
+      <description>长话短说，这篇就是一次完整的记录，从问题怎么来的，到最后方案怎么定，中间的弯路也都保留。</description>
+      <content:encoded>&lt;p&gt;长话短说，这篇就是一次完整的记录，从问题怎么来的，到最后方案怎么定，中间的弯路也都保留。&lt;/p&gt;
+&lt;!--more--&gt;
+&lt;h2&gt;为什么默认值不够用&lt;/h2&gt;
+&lt;p&gt;线程池的几个核心参数，参数含义背起来不难，难的是落到自己的业务上到底填多少。CPU 密集型给核数、IO 密集型给两倍核数，这种口诀只能当起点，真正决定上限的是下游的承受能力：数据库连接池多大、依赖接口的 RT 多少，这些才是天花板。&lt;/p&gt;
+&lt;p&gt;我的习惯是先估算单任务的耗时分布，再算目标吞吐需要多少线程在同时工作，得出一个理论区间，然后压测校准。压测时重点观察队列长度和拒绝数，而不是只看接口响应时间，队列一旦持续增长，说明线程数跟不上，拒绝策略开始触发就更要警惕。&lt;/p&gt;
+&lt;h2&gt;我的几点实践&lt;/h2&gt;
+&lt;p&gt;实践中还有几条体会：线程池一定要有名字，排查问题时线程 dump 里一堆 pool-1-thread-N 是没有信息量的；队列用有界的，配合理的拒绝策略，宁可快速失败也不要无声堆积；监控上至少暴露活跃线程数、队列深度、拒绝次数三个指标。参数没有一次调对的，留好压测报告，每次调整都记录依据，慢慢就能沉淀出适合自己业务的基线。&lt;/p&gt;
+&lt;h2&gt;顺手记两个坑&lt;/h2&gt;
+&lt;p&gt;数据库连接池耗尽告警，顺着栈一看，事务方法里调了个远程接口，慢的时候一占好几秒。把远程调用挪出事务，事务粒度改小，连接池立刻宽松了。事务里只做该做的事。&lt;/p&gt;
+&lt;p&gt;crontab 里的脚本手动跑正常、定时跑就报错，环境变量不一致是老坑。把依赖的环境都写进脚本头部，或者干脆用绝对路径，别指望定时任务的运行环境和你的终端一样。&lt;/p&gt;
+&lt;p&gt;单元测试月底跑挂了，因为断言里依赖系统当前日期。注入 Clock 之后再测，时间随意控制。第一次遇到这种问题觉得很玄学，理解了之后觉得这是依赖注入最生动的教学案例。&lt;/p&gt;
+&lt;h2&gt;一点延伸&lt;/h2&gt;
+&lt;p&gt;单元测试这件事，说起来都认同，写起来都嫌烦。我的折中方案是不追求覆盖率，只给核心逻辑写测试：边界条件、状态流转、容易改坏的地方。这几处有测试兜底，重构才有底气，其他地方随缘就好。&lt;/p&gt;
+&lt;p&gt;代码评审这些年我固定看三样东西：资源有没有释放、并发有没有保护、失败路径有没有处理。功能对不对通常作者自己会验证，这三样恰恰是测试跑不出来的，也是线上事故的高发区，评审时值得多花两分钟。&lt;/p&gt;
+&lt;p&gt;顺带说个写 Java 这些年的感受：语言本身的语法点翻来覆去就那些，真正拉开差距的是运行时的理解。同样一段代码，知道它在内存里怎么流转的人，能预判问题发生在哪里；只背八股的人，只能在报错之后被动接招。这也是我一直建议把源码读起来的原因。&lt;/p&gt;
+&lt;p&gt;排查并发问题有一套通用的思路值得记下：先确认是不是真并发，很多“偶现”最后发现是数据问题；再看是可见性、原子性还是有序性中的哪一类；最后才落到具体工具。顺序对了，方向就不会错，大多数时候我们是被表象带偏的。&lt;/p&gt;
+&lt;h2&gt;再补充几句&lt;/h2&gt;
+&lt;p&gt;顺便说说协作里的体会：这类事自己闷头做效率最高，但闷头做完往往返工最多。适度地提前同步，把方向先对齐，看似慢了半天，实际省掉的是几天的返工。沟通的时机比沟通的技巧更值得琢磨。&lt;/p&gt;
+&lt;p&gt;其实回看这些年踩的坑，大坑几乎都和贪快有关。快不是错，错的是想跳过必要步骤的快，地基没打牢盖得越快塌得越响。慢下来把该做的做扎实，反而是最快的路径，这话说了很多年，每次验证都对。&lt;/p&gt;
+&lt;p&gt;有个观察分享给大家：技术的成长曲线不是线性的，是一段平台加一次跃迁。平台期最磨人，感觉学了很多没进步，其实是在攒素材，攒够了某个契机一到就突飞猛进。所以在平台期别否定自己，那是跃迁的前奏。&lt;/p&gt;
+&lt;h2&gt;写在最后&lt;/h2&gt;
+&lt;p&gt;周末在家调这个，家里领导问我看到底有什么乐趣，认真想了想，还真描述不上来，大概就是那种东西被自己理顺的舒服。&lt;/p&gt;
+&lt;p&gt;这篇就先这样，想到了什么再回来补。&lt;/p&gt;</content:encoded>
+    </item>
+    <item>
+      <title>Redis 常用数据结构的底层实现</title>
+      <link>https://lvxi0605.github.io/posts/redis/redis-datastruct</link>
+      <guid isPermaLink="true">https://lvxi0605.github.io/posts/redis/redis-datastruct</guid>
+      <pubDate>Thu, 29 Oct 2026 00:00:00 GMT</pubDate>
+      <description>写技术文章对我来说主要是个复盘的过程，写不清楚的地方往往就是还没想清楚的地方。</description>
+      <content:encoded>&lt;p&gt;写技术文章对我来说主要是个复盘的过程，写不清楚的地方往往就是还没想清楚的地方。&lt;/p&gt;
+&lt;!--more--&gt;
+&lt;h2&gt;对象与编码&lt;/h2&gt;
+&lt;p&gt;Redis 对外是五种对象，对内每种对象有多个编码实现，小数据时用紧凑结构，大了自动转标准结构。list 在元素少时是 listpack，大了换 quicklist；hash 元素少时也是 listpack，超过阈值转成真正的哈希表；zset 小的时候 listpack，大了跳表加字典的组合。&lt;/p&gt;
+&lt;p&gt;这些自动转换是理解一些怪现象的钥匙：为什么小 hash 占用极低、为什么某个 key 从几百个字段涨到几万个之后内存暴涨、为什么 sorted set 能同时做到范围查询和点查，跳表负责有序性，字典负责 O(1) 点查，两个结构各干各的。&lt;/p&gt;
+&lt;h2&gt;用对结构省一半内存&lt;/h2&gt;
+&lt;p&gt;实践价值在内存和性能两头：把合适的数据装进合适的结构，比如亿级的用户签到用位图而不是集合，日活统计用 HyperLogLog，内存差出几个数量级；反过来要注意大 key，任何一个结构膨胀到几十兆都值得警惕。养成用 memory usage 和 bigkeys 巡检的习惯，Redis 的很多事故源头都是某个不经意的 key 慢慢长大。&lt;/p&gt;
+&lt;h2&gt;记两个小问题&lt;/h2&gt;
+&lt;p&gt;一条 SQL 索引明明在，但执行计划就是不走，折腾半天发现是字段上包了层函数。把函数挪到参数那边改写之后，从八秒降到八十毫秒，这种问题每次遇到都痛恨自己一开始没看执行计划。&lt;/p&gt;
+&lt;p&gt;Redis 里翻出个大 key，一个 list 存了几十万成员，直接 del 的时候整条命令阻塞。后来用 scan 分批渐进删除，线上才没抖。大 key 巡检这件事还是要定期做，不能等出事再想。&lt;/p&gt;
+&lt;p&gt;多实例部署之后定时任务重复执行，同一个数据处理了两遍。加分布式锁当然可以，最后偷懒换了调度平台的分片路由，一行配置解决，前提是任务本身可以按分片拆。&lt;/p&gt;
+&lt;h2&gt;顺便一提&lt;/h2&gt;
+&lt;p&gt;缓存和数据库的一致性是个永恒话题，没有银弹，只有按业务容忍度选方案。先问自己：不一致的窗口期多大可以接受？答案决定了用失效、用双删还是用订阅 binlog 的异步更新，很多争论其实是没先对齐这个前提。&lt;/p&gt;
+&lt;p&gt;Redis 的很多事故复盘下来都是“没想到会用成这样”：没想到一个 key 会涨到几百兆，没想到一个 hash 会有千万级字段。所以架构评审时对 Redis 的使用多做一句灵魂拷问：这个结构的规模上限是多少，通常能省掉未来很多夜晚。&lt;/p&gt;
+&lt;p&gt;用 Redis 的这些年的一个整体感受：它把复杂性从性能转移到了运维。单线程模型保证了简单和快，但内存水位、大 key、热点 key 这些问题都需要自己盯。用好它的关键不是多学几个命令，是建立起一套日常巡检的习惯。&lt;/p&gt;
+&lt;p&gt;缓存和数据库的一致性是个永恒话题，没有银弹，只有按业务容忍度选方案。先问自己：不一致的窗口期多大可以接受？答案决定了用失效、用双删还是用订阅 binlog 的异步更新，很多争论其实是没先对齐这个前提。&lt;/p&gt;
+&lt;h2&gt;另外记几笔&lt;/h2&gt;
+&lt;p&gt;顺便说说协作里的体会：这类事自己闷头做效率最高，但闷头做完往往返工最多。适度地提前同步，把方向先对齐，看似慢了半天，实际省掉的是几天的返工。沟通的时机比沟通的技巧更值得琢磨。&lt;/p&gt;
+&lt;p&gt;其实回看这些年踩的坑，大坑几乎都和贪快有关。快不是错，错的是想跳过必要步骤的快，地基没打牢盖得越快塌得越响。慢下来把该做的做扎实，反而是最快的路径，这话说了很多年，每次验证都对。&lt;/p&gt;
+&lt;p&gt;有个观察分享给大家：技术的成长曲线不是线性的，是一段平台加一次跃迁。平台期最磨人，感觉学了很多没进步，其实是在攒素材，攒够了某个契机一到就突飞猛进。所以在平台期别否定自己，那是跃迁的前奏。&lt;/p&gt;
+&lt;p&gt;再补充一个角度：做这些事情的时候，工具的顺滑度影响巨大。同样的活，称手的工具能让摩擦力小一半，这种差异日积月累就是人和人的差距。定期审视自己的工具链，删掉碍事的，补上趁手的，值得当成一个固定动作。&lt;/p&gt;
+&lt;h2&gt;小结&lt;/h2&gt;
+&lt;p&gt;天冷了，敲键盘手有点僵，新入手的木质腕托派上了用场，顺便把欠的这篇写完。&lt;/p&gt;
+&lt;p&gt;先记到这里，后面有新的进展再来补充。&lt;/p&gt;</content:encoded>
+    </item>
+    <item>
+      <title>JVM 运行时内存区域梳理（二）</title>
+      <link>https://lvxi0605.github.io/posts/jvm/jvm-memory-area-2</link>
+      <guid isPermaLink="true">https://lvxi0605.github.io/posts/jvm/jvm-memory-area-2</guid>
+      <pubDate>Sun, 25 Oct 2026 00:00:00 GMT</pubDate>
+      <description>想写这个话题很久了，一直没找到合适的角度，这篇先把核心的部分讲清楚，细节以后再展开。</description>
+      <content:encoded>&lt;p&gt;想写这个话题很久了，一直没找到合适的角度，这篇先把核心的部分讲清楚，细节以后再展开。&lt;/p&gt;
+&lt;!--more--&gt;
+&lt;h2&gt;线程私有与共享&lt;/h2&gt;
+&lt;p&gt;运行时数据区可以按线程维度分两半。线程私有的三块：程序计数器记录当前执行位置，是唯一不会 OOM 的区域；虚拟机栈存放栈帧，方法调用的局部变量表和操作数栈都在里面，递归太深爆的就是 StackOverflowError；本地方法栈服务于 native 方法。线程共享的是堆和方法区，堆是对象的主战场，方法区在 JDK 8 之后由元空间实现，类的元数据挪到了本地内存。&lt;/p&gt;
+&lt;p&gt;堆内部通常再按代划分：新生代的 Eden 和两个 Survivor，加上老年代。对象优先在 Eden 分配，熬过几轮 Minor GC 之后晋升老年代，大对象可以直达老年代。分代的核心假设是弱代假说，大部分对象朝生夕死，把不同寿命的对象分开管理，回收效率才高。&lt;/p&gt;
+&lt;h2&gt;调参数的前提&lt;/h2&gt;
+&lt;p&gt;理解内存区域的另一个用处是看懂 OOM：堆溢出、元空间溢出、栈溢出、直接内存溢出，各自的报错信息和排查方向完全不同。调参数之前先把这张地图刻在脑子里，否则 -Xmx、-Xmn、-XX:MaxMetaspaceSize 这些参数就是死记硬背，换个场景就不会用了。我的建议是画出自己应用的对象年龄分布和老年代增长曲线，比背任何口诀都有用。&lt;/p&gt;
+&lt;h2&gt;顺手记两个坑&lt;/h2&gt;
+&lt;p&gt;服务注册状态看着正常，流量却没打过来。心跳超时加上保护阈值，Nacos 短暂摘除了实例。注册中心的状态和真实可用性是两回事，健康检查永远要结合业务探活来看。&lt;/p&gt;
+&lt;p&gt;ES 深分页直接报错，from 加 size 超了上限。改用 search_after 滚动查询，性能稳定得多。分页这个需求，产品经理以为是免费的，实际上是数据库在替他扛。&lt;/p&gt;
+&lt;p&gt;导出报表把服务打 OOM，一次性查全量再一次性写 Excel。改成游标分批查加流式写，内存稳稳的。任何全量操作，都值得先问一句：数据量多大，以后还会更大吗。&lt;/p&gt;
+&lt;h2&gt;一点延伸&lt;/h2&gt;
+&lt;p&gt;调优这个词容易让人兴奋，但实践里大多数所谓的调优，其实是把不合理的配置纠正回合理范围。真正的精细调优空间很小，而且高度依赖具体负载，别把调优神化，更别在没有监控数据的情况下凭感觉动参数。&lt;/p&gt;
+&lt;p&gt;版本迭代对 JVM 知识的影响比想象中大，很多流行于博客的结论在新的 JDK 里已经变了。看资料先看版本背景，自己动手验证一遍，这个习惯能避免把过时的结论当成真理用很多年。&lt;/p&gt;
+&lt;p&gt;补充一个看问题的角度：JVM 的各种机制不是孤立的知识点，把它们串起来的主线是“如何让内存和 CPU 的使用更高效”。理解了这条主线，很多设计就不需要死记硬背，比如为什么分代、为什么要 JIT、为什么有线程本地缓冲。&lt;/p&gt;
+&lt;p&gt;线上 JVM 问题有一个基本盘：内存问题看趋势，CPU 问题看线程，两者都依赖平时留好监控和日志。事故时刻的第一手现场最珍贵，参数要在平时配好，出事才不会两手空空。&lt;/p&gt;
+&lt;p&gt;调优这个词容易让人兴奋，但实践里大多数所谓的调优，其实是把不合理的配置纠正回合理范围。真正的精细调优空间很小，而且高度依赖具体负载，别把调优神化，更别在没有监控数据的情况下凭感觉动参数。&lt;/p&gt;
+&lt;h2&gt;再补充几句&lt;/h2&gt;
+&lt;p&gt;从更高的视角看，这类问题都有一个共同结构：短期收益和长期收益打架。短期的诱惑总是具体而生动，长期的回报抽象而遥远，赢家通常是那些把长期目标拆成短期可感的小奖励的人。&lt;/p&gt;
+&lt;p&gt;讲个题外话，做这类事情的时候最好留个记录的习惯，当时的判断依据比结果更珍贵。结果好可能只是运气好，把决策过程记下来，好运才可能被复制，坏运才可能被规避。&lt;/p&gt;
+&lt;p&gt;然后想说，承认不懂是这行的美德。这次遇到不懂的地方，老老实实补了两天的课，比硬着头皮往上糊的方案强太多。不懂装懂的代价从来不会消失，只是延期，还带利息。&lt;/p&gt;
+&lt;p&gt;平衡感很重要的一件事：投入和收益的比例。所有优化都值得先问一句，这件事的收益上限是多少，值多少投入。无限打磨一个低价值的东西是工程师最常见的温柔陷阱，包括我自己在内。&lt;/p&gt;
+&lt;h2&gt;小结&lt;/h2&gt;
+&lt;p&gt;写这篇之前刚给阳台的绿萝浇了水，照顾植物和写博客有个共同点，都靠长期的小坚持。&lt;/p&gt;
+&lt;p&gt;这篇就先这样，想到了什么再回来补。&lt;/p&gt;</content:encoded>
+    </item>
+    <item>
+      <title>volatile 与 Java 内存模型（五）</title>
+      <link>https://lvxi0605.github.io/posts/java/volatile-jmm-5</link>
+      <guid isPermaLink="true">https://lvxi0605.github.io/posts/java/volatile-jmm-5</guid>
+      <pubDate>Sat, 24 Oct 2026 00:00:00 GMT</pubDate>
+      <description>最近被问了几次同一个问题，发现口头表达总是漏要点，干脆写成文，以后直接甩链接。</description>
+      <content:encoded>&lt;p&gt;最近被问了几次同一个问题，发现口头表达总是漏要点，干脆写成文，以后直接甩链接。&lt;/p&gt;
+&lt;!--more--&gt;
+&lt;h2&gt;它保证什么不保证什么&lt;/h2&gt;
+&lt;p&gt;volatile 的语义可以概括成两条：可见性和有序性。写一个 volatile 变量，会把工作内存里的值刷回主存；读的时候强制从主存加载，所以一个线程的修改对其他线程立即可见。同时编译器和处理器不能把它前后的指令重排到它的边界之外，这就靠内存屏障来保证。&lt;/p&gt;
+&lt;p&gt;但它不保证原子性，i++ 这种复合操作即使变量加了 volatile 也会丢更新，因为读改写是三条指令。这也是新手最常见的误区，以为加了 volatile 就万事大吉。需要原子性就用原子类或者锁，两者各司其职：volatile 适合状态标志、一次性发布的场景，原子类适合计数器，锁适合复合逻辑。&lt;/p&gt;
+&lt;h2&gt;双重检查锁定的例子&lt;/h2&gt;
+&lt;p&gt;双重检查锁定是理解 volatile 有序性价值的最好例子。没有 volatile 的话，instance = new Singleton() 这一步其实包含分配内存、初始化、赋值引用三步，重排之后另一个线程可能拿到一个已分配但未初始化完的对象，用起来就是莫名其妙的空指针或脏数据。加上 volatile 之后禁止这个重排，问题才根治。看懂这个例子，JMM 那套 happens-before 的规则就不再是纸上谈兵了。&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-java[Singleton.java]&quot;&gt;public class Singleton {
+    private static volatile Singleton instance;
+
+    public static Singleton get() {
+        if (instance == null) {
+            synchronized (Singleton.class) {
+                if (instance == null) {
+                    instance = new Singleton();
+                }
+            }
+        }
+        return instance;
+    }
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h2&gt;记两个小问题&lt;/h2&gt;
+&lt;p&gt;前端双击重复提交导致创建了重复单据。token 机制先挡一层，唯一索引再兜一层，两层防线齐了才踏实。幂等这件事，永远要在离数据最近的地方兜底。&lt;/p&gt;
+&lt;p&gt;HTTPS 证书配完，桌面浏览器都正常，部分安卓机型握手失败。是证书链不完整，中间证书没部署。证书工具会提示，但前提是你出问题之前主动去验证一次。&lt;/p&gt;
+&lt;p&gt;接手老代码，方法级 synchronized 把远程调用也包了进去，整个接口的吞吐被锁死。缩小锁范围只保护共享变量，性能立刻回来。锁的粒度，永远值得多看一眼。&lt;/p&gt;
+&lt;h2&gt;顺便一提&lt;/h2&gt;
+&lt;p&gt;顺带说个写 Java 这些年的感受：语言本身的语法点翻来覆去就那些，真正拉开差距的是运行时的理解。同样一段代码，知道它在内存里怎么流转的人，能预判问题发生在哪里；只背八股的人，只能在报错之后被动接招。这也是我一直建议把源码读起来的原因。&lt;/p&gt;
+&lt;p&gt;排查并发问题有一套通用的思路值得记下：先确认是不是真并发，很多“偶现”最后发现是数据问题；再看是可见性、原子性还是有序性中的哪一类；最后才落到具体工具。顺序对了，方向就不会错，大多数时候我们是被表象带偏的。&lt;/p&gt;
+&lt;p&gt;JDK 升级是这几年绕不开的话题，新版本带来的不只是语法糖，GC、启动速度、容器适配都有实打实的改进。我的建议是业务项目不必追新，但每隔一两个 LTS 版本做一次升级评估，欠债太久之后还起来会更痛苦。&lt;/p&gt;
+&lt;p&gt;写业务代码久了容易有一种惯性，什么需求都往 CRUD 上靠。其实很多看起来普通的功能，往下一层都是并发、事务、一致性这些经典问题。把业务代码写出技术含量，靠的不是堆框架，是把这些底层问题识别出来认真处理。&lt;/p&gt;
+&lt;h2&gt;另外记几笔&lt;/h2&gt;
+&lt;p&gt;从更高的视角看，这类问题都有一个共同结构：短期收益和长期收益打架。短期的诱惑总是具体而生动，长期的回报抽象而遥远，赢家通常是那些把长期目标拆成短期可感的小奖励的人。&lt;/p&gt;
+&lt;p&gt;讲个题外话，做这类事情的时候最好留个记录的习惯，当时的判断依据比结果更珍贵。结果好可能只是运气好，把决策过程记下来，好运才可能被复制，坏运才可能被规避。&lt;/p&gt;
+&lt;p&gt;然后想说，承认不懂是这行的美德。这次遇到不懂的地方，老老实实补了两天的课，比硬着头皮往上糊的方案强太多。不懂装懂的代价从来不会消失，只是延期，还带利息。&lt;/p&gt;
+&lt;p&gt;平衡感很重要的一件事：投入和收益的比例。所有优化都值得先问一句，这件事的收益上限是多少，值多少投入。无限打磨一个低价值的东西是工程师最常见的温柔陷阱，包括我自己在内。&lt;/p&gt;
+&lt;h2&gt;小结&lt;/h2&gt;
+&lt;p&gt;泡的茶忘了喝，回过神已经凉透了，进入状态的时候对时间的感知就剩这点不好。&lt;/p&gt;
+&lt;p&gt;这篇就先这样，想到了什么再回来补。&lt;/p&gt;</content:encoded>
+    </item>
+    <item>
+      <title>一条顺手的 CI/CD 流水线长什么样（三）</title>
+      <link>https://lvxi0605.github.io/posts/devops/cicd-pipeline-3</link>
+      <guid isPermaLink="true">https://lvxi0605.github.io/posts/devops/cicd-pipeline-3</guid>
+      <pubDate>Wed, 21 Oct 2026 00:00:00 GMT</pubDate>
+      <description>又是拖了很久才动笔的一篇，草稿箱里躺了快一个月，趁周末把思路理一理，一次写完。</description>
+      <content:encoded>&lt;p&gt;又是拖了很久才动笔的一篇，草稿箱里躺了快一个月，趁周末把思路理一理，一次写完。&lt;/p&gt;
+&lt;!--more--&gt;
+&lt;h2&gt;阶段怎么划分&lt;/h2&gt;
+&lt;p&gt;一条用起来舒服的流水线，阶段大致是：拉代码、编译构建、静态检查与单测、构建镜像推仓库、部署测试环境、自动化冒烟、人工确认后发布生产。每个阶段的失败都要能快速定位，日志结构化输出，产物用版本号管理，回滚就是部署上一个版本的镜像，一条命令的事。&lt;/p&gt;
+&lt;p&gt;速度是流水线的生命线。缓存依赖目录、并行跑无依赖的检查、构建产物增量复用，这些做到位之后，十几分钟的流水线能压到几分钟。反馈越快，开发者越愿意小步提交，集成的痛苦就越少。&lt;/p&gt;
+&lt;h2&gt;几个原则&lt;/h2&gt;
+&lt;p&gt;几个原则：主分支永远可部署，这是流水线存在的意义；环境配置全部走变量注入，镜像只构建一次多环境复用，同一镜像到处重新构建的团队迟早会踩配置漂移的坑；生产发布必须有人工闸门或者自动化的发布检查单；失败要通知到人，流水线挂了三天没人管，CI 就名存实亡了。工具选 Jenkins 还是 GitLab CI 都行，这些原则才是核心。&lt;/p&gt;
+&lt;h2&gt;记两个小问题&lt;/h2&gt;
+&lt;p&gt;Kafka 某个分区消费延迟特别高，看数据发现某大客户的消息占了总量一半，按 userId 分区全进了一个分区。大客户单独走一个 topic 才解决，倾斜问题在哪个中间件里都一样。&lt;/p&gt;
+&lt;p&gt;WebSocket 上线之后频繁断连，本地好好的，一上 Nginx 就出问题。代理默认不转发 Upgrade 头，补上之后世界清净了，这类中间件默认行为，不踩一次真的想不到。&lt;/p&gt;
+&lt;p&gt;发版之后用户还在用旧页面，报接口不存在的错。index.html 被强缓存了，给 HTML 加 no-cache、静态资源带 hash 长缓存，这是前端部署的标配，后端出身的我当年是真不知道。&lt;/p&gt;
+&lt;h2&gt;顺便一提&lt;/h2&gt;
+&lt;p&gt;运维习惯养成的核心是自动化，凡是重复超过三次的操作都值得脚本化。手工操作的隐蔽成本不只是慢，是不可复现：同一次发布，脚本执行和手工执行的一致性完全不在一个量级。&lt;/p&gt;
+&lt;p&gt;基础设施的变更要遵循小步快跑的原则，一次改一个变量，改完观察再继续。一次性改一堆配置然后出了问题，最大的损失不是故障本身，是不知道哪一改才是元凶，回滚都无从下手。&lt;/p&gt;
+&lt;p&gt;环境一致性是很多灵异问题的根源所在这：本地好的、测试坏的、生产偶尔坏。容器化解决了大部分，但配置漂移随时可能卷土重来，定期对比各环境的实际配置，当成例行的体检项目。&lt;/p&gt;
+&lt;p&gt;值班和告警的设计也值得花心思：告警分级，紧急的打电话，重要的进群，一般的攒日报。告警疲劳是运维事故的经典前置条件，值得忍痛把大量“看起来有用”的告警关掉，只留真正需要人处理的。&lt;/p&gt;
+&lt;p&gt;运维习惯养成的核心是自动化，凡是重复超过三次的操作都值得脚本化。手工操作的隐蔽成本不只是慢，是不可复现：同一次发布，脚本执行和手工执行的一致性完全不在一个量级。&lt;/p&gt;
+&lt;h2&gt;另外记几笔&lt;/h2&gt;
+&lt;p&gt;忍不住再夸一下记录的力量，上周刚整理的笔记，这次直接翻出来就用，十分钟解决了当时花一下午的问题。给自己留下的每一份笔记，都是寄给未来的快递，寄件人签收时才觉得真香。&lt;/p&gt;
+&lt;p&gt;最后聊点感受：做技术这些年，越来越觉得最好的状态是既投入又抽离。投入是把事情做好，抽离是时不时跳出来看看方向对不对，两者缺一，要么辛苦没产出，要么轻松跑偏路。&lt;/p&gt;
+&lt;p&gt;写着写着想到，很多技术选择本质上都是在回答同一个问题：这个方案在出问题的时候是什么样子。不出问题的方案人人都写得出来，区分度全在故障时刻的表现。多想一层失败路径，很多纠结就自动有了答案。&lt;/p&gt;
+&lt;p&gt;这类经验在文档里通常只有一行字，背后的排查却是一整个下午。技术工作的大部分时间都花在这些不会写进简历的细节里，所以这些细节才更需要有人写出来，哪怕只是给未来某一天忘了的自己。&lt;/p&gt;
+&lt;h2&gt;写在最后&lt;/h2&gt;
+&lt;p&gt;中午和同事为这个方案争了半天，下午各自写了个小 demo 验证，最后他赢了，输得心服口服。&lt;/p&gt;
+&lt;p&gt;这篇写得断断续续，总算收尾，下篇见。&lt;/p&gt;</content:encoded>
+    </item>
+    <item>
+      <title>搬家的断舍离练习</title>
+      <link>https://lvxi0605.github.io/posts/life/moving-day</link>
+      <guid isPermaLink="true">https://lvxi0605.github.io/posts/life/moving-day</guid>
+      <pubDate>Wed, 21 Oct 2026 00:00:00 GMT</pubDate>
+      <description>又到周末，把这阵子的碎片想法归拢成一篇，写得随意一点。</description>
+      <content:encoded>&lt;p&gt;又到周末，把这阵子的碎片想法归拢成一篇，写得随意一点。&lt;/p&gt;
+&lt;!--more--&gt;
+&lt;h2&gt;东西比想象的多&lt;/h2&gt;
+&lt;p&gt;这次搬家提前了两周开始收拾，本来觉得五年攒不了多少东西，结果打包纸箱买到第三批才够。真正花时间的不是装箱，是决定每件东西的去留：搬家是最好的断舍离练习场，因为每一件都要回答一个问题，它值得被搬到新家吗。&lt;/p&gt;
+&lt;p&gt;我的判断标准最后收敛成三条：一年内没用过的送人或丢掉；有意义没用途的，拍照留念后处理，相册占不了地方；重复的东西只留最好的那个。就这么筛下来，实际搬走的东西不到打包量的一半，过程里扔掉的大半是&quot;总有一天会用上&quot;这个念头本身。&lt;/p&gt;
+&lt;h2&gt;收拾之后的感受&lt;/h2&gt;
+&lt;p&gt;新家安顿好之后有个明显的感受：东西少了，找东西的时间也少了，桌面能保持住整洁了。以前总觉得空间不够，其实是被低频物品占满了高频区域。这半年陆陆续续还在做减法，购物前多了个习惯动作，先想想这件东西在下次搬家时会变成什么。带着终局视角过日子，很多消费冲动就自动降温了。&lt;/p&gt;
+&lt;h2&gt;一点反思&lt;/h2&gt;
+&lt;p&gt;加湿器开一整夜，窗台上全是水汽，墙角都有点返潮。买了个湿度计才知道，舒服的湿度是个区间，不是越大越好，很多事都是这个道理。&lt;/p&gt;
+&lt;p&gt;桌面充电线缠成一团，剪也剪不开理也理不清。十块钱的理线器加几个标签贴，一次到位。这种小钱花出去，回报率出奇地高。&lt;/p&gt;
+&lt;p&gt;保温杯里闷了一晚上的茶，苦到怀疑人生。茶水分离的杯子买回来之后，每一泡都恰到好处，工具选对，体验立刻不同。&lt;/p&gt;
+&lt;h2&gt;顺便一提&lt;/h2&gt;
+&lt;p&gt;写生活记录这几年有个体会：当时觉得不值得写的小事，事后回看反而是最鲜活的片段。反而是那些酝酿很久想认真写的“大主题”，多数烂在了草稿箱。所以现在我的原则是趁热写，先记下来，好不好以后再说。&lt;/p&gt;
+&lt;p&gt;生活里很多烦恼，拆开看其实是信息问题而不是命运问题：不知道怎么挑、不知道怎么做、不知道别人是怎么解决的。而信息问题基本都能靠学习和请教解决，这么一想，很多焦虑就有了着手点。&lt;/p&gt;
+&lt;p&gt;独居和成家各有各的修行，我现在的体会是无论哪种状态，把生活的基础盘打理好都是第一位的：睡眠、饮食、居住环境、几个说得上话的朋友。基础盘稳了，其他的变化来了都能接得住。&lt;/p&gt;
+&lt;p&gt;成年人的学习和学生时代最大的不同是反馈周期，没人给你打分，效果要几个月甚至几年后才显现。所以坚持的动力只能来自内部：记录对照、阶段复盘、给自己一点小奖励，这些机制比意志力可靠得多。&lt;/p&gt;
+&lt;p&gt;写生活记录这几年有个体会：当时觉得不值得写的小事，事后回看反而是最鲜活的片段。反而是那些酝酿很久想认真写的“大主题”，多数烂在了草稿箱。所以现在我的原则是趁热写，先记下来，好不好以后再说。&lt;/p&gt;
+&lt;h2&gt;另外记几笔&lt;/h2&gt;
+&lt;p&gt;忍不住再夸一下记录的力量，上周刚整理的笔记，这次直接翻出来就用，十分钟解决了当时花一下午的问题。给自己留下的每一份笔记，都是寄给未来的快递，寄件人签收时才觉得真香。&lt;/p&gt;
+&lt;p&gt;最后聊点感受：做技术这些年，越来越觉得最好的状态是既投入又抽离。投入是把事情做好，抽离是时不时跳出来看看方向对不对，两者缺一，要么辛苦没产出，要么轻松跑偏路。&lt;/p&gt;
+&lt;p&gt;写着写着想到，很多技术选择本质上都是在回答同一个问题：这个方案在出问题的时候是什么样子。不出问题的方案人人都写得出来，区分度全在故障时刻的表现。多想一层失败路径，很多纠结就自动有了答案。&lt;/p&gt;
+&lt;p&gt;这类经验在文档里通常只有一行字，背后的排查却是一整个下午。技术工作的大部分时间都花在这些不会写进简历的细节里，所以这些细节才更需要有人写出来，哪怕只是给未来某一天忘了的自己。&lt;/p&gt;
+&lt;h2&gt;小结&lt;/h2&gt;
+&lt;p&gt;折腾完顺手写了几行代码做了个统计，理工科思维的反应就是这样，朋友都笑我，但确实好用了。&lt;/p&gt;
+&lt;p&gt;差不多了，剩下的细节等用到的时候再展开写。&lt;/p&gt;</content:encoded>
+    </item>
+    <item>
+      <title>心理学入门读物推荐（二）</title>
+      <link>https://lvxi0605.github.io/posts/life/book-psychology-2</link>
+      <guid isPermaLink="true">https://lvxi0605.github.io/posts/life/book-psychology-2</guid>
+      <pubDate>Mon, 19 Oct 2026 00:00:00 GMT</pubDate>
+      <description>周末闲下来，想把这件事记一笔，没什么技术含量，就是觉得有点意思，不写下来可惜。</description>
+      <content:encoded>&lt;p&gt;周末闲下来，想把这件事记一笔，没什么技术含量，就是觉得有点意思，不写下来可惜。&lt;/p&gt;
+&lt;!--more--&gt;
+&lt;h2&gt;为什么读心理学&lt;/h2&gt;
+&lt;p&gt;读心理学入门书的契机是那阵子状态不太好，容易焦虑，想找点方法。真正读进去之后发现，心理学给我的不只是情绪管理技巧，更是一套理解自己行为的框架：为什么拖延、为什么明知不对还反复做某件事、为什么和人沟通总在同一个点上卡壳，这些以前归因于性格的东西，很多有清晰的机制解释。&lt;/p&gt;
+&lt;p&gt;入门我踩过的坑是书没选对，畅销书里掺着大量伪心理学，看起来有道理但经不起推敲。后来学会先看作者背景和参考文献，才慢慢摸到靠谱的书单。&lt;/p&gt;
+&lt;h2&gt;两本推荐&lt;/h2&gt;
+&lt;p&gt;推荐两本亲测有效的：一本是讲认知偏差的，读完会对自己脑子里的自动反应多一分警惕，情绪上头时能有个暂停键；另一本是讲习惯养成的，把行为拆成触发、动作、奖励三段来设计，我用它重构了自己的睡前流程，比靠意志力靠谱太多。提醒一句，入门读物解决不了严重的问题，该求助专业人士时别硬扛，读书和就医是两回事。读完最大的变化是对自己宽容了一点，很多&quot;毛病&quot;其实是大脑的出厂设置，理解了就不那么自责了。&lt;/p&gt;
+&lt;h2&gt;一点反思&lt;/h2&gt;
+&lt;p&gt;剩菜以前是等凉透再进冰箱，被科普之后才知道要尽快冷藏，细菌繁殖的窗口期比想象中短。生活里很多想当然的习惯，较真起来都有另一套答案。&lt;/p&gt;
+&lt;p&gt;随手记两个小教训：阳台那盆绿萝浇得太勤，根都泡烂了，剪掉烂的部分重新扦插，现在改了策略，土干了再浇，反倒精神了不少。&lt;/p&gt;
+&lt;p&gt;煮饭水放多了，成品介于饭和粥之间。后来老老实实用量杯，或者直接看水位线，凭感觉这种事，在厨房里基本靠不住。&lt;/p&gt;
+&lt;h2&gt;顺便一提&lt;/h2&gt;
+&lt;p&gt;独居和成家各有各的修行，我现在的体会是无论哪种状态，把生活的基础盘打理好都是第一位的：睡眠、饮食、居住环境、几个说得上话的朋友。基础盘稳了，其他的变化来了都能接得住。&lt;/p&gt;
+&lt;p&gt;成年人的学习和学生时代最大的不同是反馈周期，没人给你打分，效果要几个月甚至几年后才显现。所以坚持的动力只能来自内部：记录对照、阶段复盘、给自己一点小奖励，这些机制比意志力可靠得多。&lt;/p&gt;
+&lt;p&gt;写生活记录这几年有个体会：当时觉得不值得写的小事，事后回看反而是最鲜活的片段。反而是那些酝酿很久想认真写的“大主题”，多数烂在了草稿箱。所以现在我的原则是趁热写，先记下来，好不好以后再说。&lt;/p&gt;
+&lt;p&gt;生活里很多烦恼，拆开看其实是信息问题而不是命运问题：不知道怎么挑、不知道怎么做、不知道别人是怎么解决的。而信息问题基本都能靠学习和请教解决，这么一想，很多焦虑就有了着手点。&lt;/p&gt;
+&lt;h2&gt;另外记几笔&lt;/h2&gt;
+&lt;p&gt;有时候会想，学一门新技术到底学到的是什么。语法和 API 会过时，真正的收获是它看问题的角度。多一门语言就多一副眼镜，同一副牌桌，能看到别人看不到的牌路，这是这么多年折腾下来最确定的回报。&lt;/p&gt;
+&lt;p&gt;记一个产生过的动摇：做到一半觉得这玩意儿是不是没什么意义。后来想通了，意义不是事情自带的，是你把它做完并沉淀下来之后长出来的。烂尾的才真的没意义，做完的最差也是一篇笔记。&lt;/p&gt;
+&lt;p&gt;顺便说说协作里的体会：这类事自己闷头做效率最高，但闷头做完往往返工最多。适度地提前同步，把方向先对齐，看似慢了半天，实际省掉的是几天的返工。沟通的时机比沟通的技巧更值得琢磨。&lt;/p&gt;
+&lt;p&gt;其实回看这些年踩的坑，大坑几乎都和贪快有关。快不是错，错的是想跳过必要步骤的快，地基没打牢盖得越快塌得越响。慢下来把该做的做扎实，反而是最快的路径，这话说了很多年，每次验证都对。&lt;/p&gt;
+&lt;h2&gt;写在最后&lt;/h2&gt;
+&lt;p&gt;我把这件事当成一个小需求来管理，明确了目标和验收标准，中途改了两次方案，最后的效果自己挺满意。&lt;/p&gt;
+&lt;p&gt;这篇就先这样，想到了什么再回来补。&lt;/p&gt;</content:encoded>
+    </item>
+  </channel>
+</rss>

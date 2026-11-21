@@ -1,0 +1,1 @@
+.loading[data-v-7d2c3a1f]{flex-wrap:nowrap;justify-content:center;align-items:center;gap:8px;margin:15px 0;display:flex}.loading .spinner[data-v-7d2c3a1f]{color:var(--ui-primary);animation:1s linear infinite spin-7d2c3a1f}.loading .tip[data-v-7d2c3a1f]{color:var(--ui-text-muted);font-size:.9rem}@keyframes spin-7d2c3a1f{to{transform:rotate(1turn)}}

@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /search
+
+Sitemap: https://lvxi0605.github.io/sitemap.xml
+Sitemap: https://lvxi0605.github.io/sitemap-images.xml

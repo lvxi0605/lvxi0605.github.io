@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-Hans-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>离线浏览</title>
+  <style>
+    :root { color-scheme: light dark; }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+        "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+      -webkit-font-smoothing: antialiased;
+    }
+    .card {
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 36px 28px 32px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    }
+    .logo {
+      width: 56px;
+      height: 56px;
+      margin: 0 auto 18px;
+      display: block;
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+    p {
+      margin: 0 0 24px;
+      font-size: 14px;
+      line-height: 1.75;
+      color: #475569;
+    }
+    .btn {
+      display: inline-block;
+      padding: 10px 22px;
+      border-radius: 10px;
+      background: #16a34a;
+      color: #ffffff;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      transition: background-color 0.15s ease;
+    }
+    .btn:hover { background: #15803d; }
+    .btn:focus-visible {
+      outline: 2px solid #16a34a;
+      outline-offset: 2px;
+    }
+    @media (prefers-color-scheme: dark) {
+      body { background: #0b1220; color: #e2e8f0; }
+      .card {
+        background: #111827;
+        border-color: #1f2937;
+        box-shadow: none;
+      }
+      p { color: #94a3b8; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .btn { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="card" role="alert" aria-labelledby="offline-title">
+    <img class="logo" src="/logo.svg" alt="" aria-hidden="true" />
+    <h1 id="offline-title">暂时无法连接网络</h1>
+    <p>
+      你正在离线浏览。已打开过的文章通常可以继续阅读；尚未缓存的页面需要联网后才能访问。恢复网络后刷新本页即可获取最新内容。
+    </p>
+    <a class="btn" href="/">返回首页</a>
+  </main>
+</body>
+</html>
