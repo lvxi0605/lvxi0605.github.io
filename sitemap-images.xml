@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
+    <loc>https://lvxi0605.github.io/posts/fe/blog-development-notes</loc>
+    <image:image>
+      <image:loc>https://lvxi0605.github.io/og/posts/fe/blog-development-notes.png</image:loc>
+    </image:image>
+  </url>
+  <url>
     <loc>https://lvxi0605.github.io/posts/coffee/pourover-start</loc>
     <image:image>
       <image:loc>https://lvxi0605.github.io/og/posts/coffee/pourover-start.png</image:loc>
