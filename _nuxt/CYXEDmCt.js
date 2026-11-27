@@ -1,1 +1,0 @@
-import{mt as e,v as t}from"./DZo3dYLJ.js";import{g as n}from"#entry";import{t as r}from"./ckV4Q9I8.js";var i={};function a(n,i){let a=r;return e(),t(a,{page:1})}var o=n(i,[[`render`,a]]);export{o as default};
